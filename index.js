@@ -34,87 +34,87 @@ var tart = require('tart');
 var marshal = require('tart-marshal');
 
 /*
-	To dispatch:
-		1. Checkpoint.
-		2. If queue is empty, dispatch is done.
-		3. Dequeue event to dispatch.
-		4. Process event.
-		5. Checkpoint.
-		6. Schedule next dispatch.
-		7. Dispatch is done.
-	To checkpoint:
-		1. If effect is empty, checkpoint is done.
-		2. Write effect to log.
-		3. If effect is an error, clear effect, checkpoint is done.
-		4. Add messages sent, if any, to event queue.
-		3. Concurrently:
-			a. Persist actors created, if any.
-			b. Persist updated event queue.
-			c. Update state/behavior, if changed.
-		4. Initialize empty effect.
-		5. Checkpoint is done.
+    To dispatch:
+        1. Checkpoint.
+        2. If queue is empty, dispatch is done.
+        3. Dequeue event to dispatch.
+        4. Process event.
+        5. Checkpoint.
+        6. Schedule next dispatch.
+        7. Dispatch is done.
+    To checkpoint:
+        1. If effect is empty, checkpoint is done.
+        2. Write effect to log.
+        3. If effect is an error, clear effect, checkpoint is done.
+        4. Add messages sent, if any, to event queue.
+        3. Concurrently:
+            a. Persist actors created, if any.
+            b. Persist updated event queue.
+            c. Update state/behavior, if changed.
+        4. Initialize empty effect.
+        5. Checkpoint is done.
 */
 module.exports.checkpoint = function checkpoint(options) {
     options = options || {};
     
     var dispatchEvent = options.dispatchEvent || function dispatchEvent(callback) {
-    	// Checkpoint.
-    	saveCheckpoint(function (error) {
-			if (error) { return callback(error); }
-			// Dequeue event to dispatch.
-		    var event = dequeueEvent();
-		    // If queue is empty, dispatch is done.
-		    if (!event) { return callback(false); }
-		    // Process event.
-		    processEvent(event);
-		    // Checkpoint.
-			saveCheckpoint(function (error) {
-				if (error) { return callback(error); }
-			    // Schedule next dispatch.
-			    scheduleDispatch();
-			    // Dispatch is done.
-			    return callback(false);
-			});
-    	});
+        // Checkpoint.
+        saveCheckpoint(function (error) {
+            if (error) { return callback(error); }
+            // Dequeue event to dispatch.
+            var event = dequeueEvent();
+            // If queue is empty, dispatch is done.
+            if (!event) { return callback(false); }
+            // Process event.
+            processEvent(event);
+            // Checkpoint.
+            saveCheckpoint(function (error) {
+                if (error) { return callback(error); }
+                // Schedule next dispatch.
+                scheduleDispatch();
+                // Dispatch is done.
+                return callback(false);
+            });
+        });
     };
 
     var saveCheckpoint = options.saveCheckpoint || function saveCheckpoint(callback) {
-    	// If effect is empty, checkpoint is done.
-		if (effectIsEmpty()) { return callback(false); }
-    	// Write effect to log.
-		logEffect(function (error) {
-			if (error) { return callback(error); }
-			// If effect is an error, clear effect, checkpoint is done.
-	    	if (effectIsError()) {
-				options.effect = newEffect();
-	    		return callback(false);
-	    	}
-	    	// Add messages sent, if any, to event queue.
-	    	enqueueEvents();
-	    	// Persist global state
-			persistState(function (error) {
-				if (error) { return callback(error); }
-				// Initialize empty effect.
-				options.effect = newEffect();
-				// Checkpoint is done.
-				callback(false);
-			});
-		});
+        // If effect is empty, checkpoint is done.
+        if (effectIsEmpty()) { return callback(false); }
+        // Write effect to log.
+        logEffect(function (error) {
+            if (error) { return callback(error); }
+            // If effect is an error, clear effect, checkpoint is done.
+            if (effectIsError()) {
+                options.effect = newEffect();
+                return callback(false);
+            }
+            // Add messages sent, if any, to event queue.
+            enqueueEvents();
+            // Persist global state
+            persistState(function (error) {
+                if (error) { return callback(error); }
+                // Initialize empty effect.
+                options.effect = newEffect();
+                // Checkpoint is done.
+                callback(false);
+            });
+        });
     };
 
     var logEffect = options.logEffect || function logEffect(callback) {
-    	console.log('logEffect:', options.effect);
-    	setImmediate(function () {
-    		callback(false);
-    	});
+        console.log('logEffect:', options.effect);
+        setImmediate(function () {
+            callback(false);
+        });
     };
 
     var persistState = options.persistState || function persistState(callback) {
-    	console.log('persistState effect:', options.effect);
-    	console.log('persistState events:', options.events);
-    	setImmediate(function () {
-    		callback(false);
-    	});
+        console.log('persistState effect:', options.effect);
+        console.log('persistState events:', options.events);
+        setImmediate(function () {
+            callback(false);
+        });
     };
 
     var newEffect = options.newEffect || function newEffect() {
@@ -125,20 +125,20 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     var effectIsEmpty = options.effectIsEmpty || function effectIsEmpty() {
-    	if (options.effect.event
-    	||  options.effect.exception
-    	||  (options.effect.sent.length > 0)
-    	||	(options.effect.created.length > 0)) {
-    		return false;
-    	}
-    	return true;
+        if (options.effect.event
+        ||  options.effect.exception
+        ||  (options.effect.sent.length > 0)
+        ||  (options.effect.created.length > 0)) {
+            return false;
+        }
+        return true;
     };
 
     var effectIsError = options.effectIsError || function effectIsError() {
-    	if (options.effect.exception) {
-    		return true;
-    	}
-    	return false;
+        if (options.effect.exception) {
+            return true;
+        }
+        return false;
     };
 
     var enqueueEvents = options.enqueueEvents || function enqueueEvents() {
@@ -157,12 +157,12 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     
     var compileBehavior = options.compileBehavior || function compileBehavior(source) {
-    	return eval('(' + source + ')');  // must produce a Function
+        return eval('(' + source + ')');  // must produce a Function
     };
 
     var processEvent = options.processEvent || function processEvent(event) {
-    	console.log('processEvent event:', event);
-    	options.effect.event = event;
+        console.log('processEvent event:', event);
+        options.effect.event = event;
         try {
             options.effect.behavior = event.context.behavior;
             event.context.behavior = compileBehavior(options.effect.behavior);
@@ -172,54 +172,54 @@ module.exports.checkpoint = function checkpoint(options) {
         } catch (exception) {
             options.effect.exception = exception;
         }
-    	console.log('processEvent effect:', options.effect);
+        console.log('processEvent effect:', options.effect);
     }
 
     options.events = [];  // queue of pending events (in effect batches)
     
     options.effect = newEffect();  // initialize empty effect
 
-	var scheduleDispatch = options.scheduleDispatch || function scheduleDispatch() {
-		setImmediate(function () {
-			dispatchEvent(errorHandler);
-		});
-	};
-
-    var errorHandler = options.errorHandler || function errorHandler(error) {
-    	if (error) {
-    		console.log('Error:', error);
-    	}
+    var scheduleDispatch = options.scheduleDispatch || function scheduleDispatch() {
+        setImmediate(function () {
+            dispatchEvent(errorHandler);
+        });
     };
 
-	scheduleDispatch();  // prime the pump...
-	
-	var name = options.name || 'checkpoint';
-	var sponsor = options.sponsor || tart.minimal();
-	var transport = options.transport || sponsor(function transport(message) {
-		console.log('transport:', message);
-	});
-	var domain = marshal.domain(name, sponsor, transport);
+    var errorHandler = options.errorHandler || function errorHandler(error) {
+        if (error) {
+            console.log('Error:', error);
+        }
+    };
+
+    scheduleDispatch();  // prime the pump...
+    
+    var name = options.name || 'checkpoint';
+    var sponsor = options.sponsor || tart.minimal();
+    var transport = options.transport || sponsor(function transport(message) {
+        console.log('transport:', message);
+    });
+    var domain = marshal.domain(name, sponsor, transport);
 
     options.checkpoint = {
-    	domain: domain,
+        domain: domain,
         sponsor: function create(behavior, state) {
-			state = state || {};
-			var actor = function send(message) {
-				var event = {
-					message: message,
-					context: context
-				};
-				options.effect.sent.push(event);
-			};
-			var context = {
-				self: actor,
-				state: state,
-				behavior: behavior.toString(),
-				sponsor: create
-			};
-			options.effect.created.push(context);
-			return actor;
-		}
+            state = state || {};
+            var actor = function send(message) {
+                var event = {
+                    message: message,
+                    context: context
+                };
+                options.effect.sent.push(event);
+            };
+            var context = {
+                self: actor,
+                state: state,
+                behavior: behavior.toString(),
+                sponsor: create
+            };
+            options.effect.created.push(context);
+            return actor;
+        }
     };
 
     return options.checkpoint;

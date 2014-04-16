@@ -36,28 +36,28 @@ var test = module.exports = {};
 
 test['readme example processes two messages'] = function (test) {
     test.expect(2);
-	var checkpoint = tart.checkpoint();
+    var checkpoint = tart.checkpoint();
 
-	var oneTimeBeh = "function oneTimeBeh(message) {"
-		+ "    this.state.test.equal(message, 'bar');"
-		+ "    var actor = this.sponsor(this.state.createdBeh, {"
-		+ "        test: this.state.test"
-		+ "    });"
-		+ "    actor('foo');"
-		+ "    this.behavior = this.state.becomeBeh;"
-		+ "}";
+    var oneTimeBeh = "function oneTimeBeh(message) {"
+        + "    this.state.test.equal(message, 'bar');"
+        + "    var actor = this.sponsor(this.state.createdBeh, {"
+        + "        test: this.state.test"
+        + "    });"
+        + "    actor('foo');"
+        + "    this.behavior = this.state.becomeBeh;"
+        + "}";
 
-	var oneTimeState = {
-		createdBeh: "function createdBeh(message) {"
-			+ "    this.state.test.equal(message, 'foo');"
-			+ "    this.state.test.done();"  // test completion
-			+ "}",
-		becomeBeh: "function becomeBeh(message) {"
-			+ "    this.state.test.assert(false);"  // should not be called
-			+ "}",
-		test: test
-	};
+    var oneTimeState = {
+        createdBeh: "function createdBeh(message) {"
+            + "    this.state.test.equal(message, 'foo');"
+            + "    this.state.test.done();"  // test completion
+            + "}",
+        becomeBeh: "function becomeBeh(message) {"
+            + "    this.state.test.assert(false);"  // should not be called
+            + "}",
+        test: test
+    };
 
-	var actor = checkpoint.sponsor(oneTimeBeh, oneTimeState);
-	actor('bar');
+    var actor = checkpoint.sponsor(oneTimeBeh, oneTimeState);
+    actor('bar');
 };
