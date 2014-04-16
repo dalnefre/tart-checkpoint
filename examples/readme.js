@@ -30,10 +30,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 */
 "use strict";
 
-//var minimal = require('tart').minimal();
 var tart = require('../index.js');
 
-var sponsor = tart.checkpoint();
+var checkpoint = tart.checkpoint();
 
 var oneTimeBeh = "function oneTimeBeh(message) {"
 + "    var actor = this.sponsor(this.state.createdBeh);" // create
@@ -46,5 +45,5 @@ var oneTimeState = {
     becomeBeh: "function becomeBeh(message) {}"
 };
 
-var actor = sponsor(oneTimeBeh, oneTimeState);
+var actor = checkpoint.sponsor(oneTimeBeh, oneTimeState);
 actor('bar');

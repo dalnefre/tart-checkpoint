@@ -30,7 +30,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 */
 "use strict";
 
-//var tart = require('tart');
+var tart = require('tart');
+var marshal = require('tart-marshal');
 
 /*
 	To dispatch:
@@ -190,26 +191,36 @@ module.exports.checkpoint = function checkpoint(options) {
     	}
     };
 
-    var sponsor = function create(behavior, state) {
-    	state = state || {};
-		var actor = function send(message) {
-			var event = {
-				message: message,
-				context: context
-			};
-			options.effect.sent.push(event);
-		};
-		var context = {
-			self: actor,
-			state: state,
-			behavior: behavior.toString(),
-			sponsor: sponsor
-		};
-		options.effect.created.push(context);
-		return actor;
-	};
-
 	scheduleDispatch();  // prime the pump...
+	
+	var name = options.name || 'checkpoint';
+	var sponsor = options.sponsor || tart.minimal();
+	var transport = options.transport || sponsor(function transport(message) {
+		console.log('transport:', message);
+	});
+	var domain = marshal.domain(name, sponsor, transport);
 
-    return sponsor;
+    options.checkpoint = {
+    	domain: domain,
+        sponsor: function create(behavior, state) {
+			state = state || {};
+			var actor = function send(message) {
+				var event = {
+					message: message,
+					context: context
+				};
+				options.effect.sent.push(event);
+			};
+			var context = {
+				self: actor,
+				state: state,
+				behavior: behavior.toString(),
+				sponsor: create
+			};
+			options.effect.created.push(context);
+			return actor;
+		}
+    };
+
+    return options.checkpoint;
 };

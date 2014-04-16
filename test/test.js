@@ -36,7 +36,7 @@ var test = module.exports = {};
 
 test['readme example processes two messages'] = function (test) {
     test.expect(2);
-	var sponsor = tart.checkpoint();
+	var checkpoint = tart.checkpoint();
 
 	var oneTimeBeh = "function oneTimeBeh(message) {"
 		+ "    this.state.test.equal(message, 'bar');"
@@ -58,6 +58,6 @@ test['readme example processes two messages'] = function (test) {
 		test: test
 	};
 
-	var actor = sponsor(oneTimeBeh, oneTimeState);
+	var actor = checkpoint.sponsor(oneTimeBeh, oneTimeState);
 	actor('bar');
 };
