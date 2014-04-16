@@ -154,13 +154,17 @@ module.exports.checkpoint = function checkpoint(options) {
         }
         return false;
     };
+    
+    var compileBehavior = options.compileBehavior || function compileBehavior(source) {
+    	return eval('(' + source + ')');  // must produce a Function
+    };
 
     var processEvent = options.processEvent || function processEvent(event) {
     	console.log('processEvent event:', event);
     	options.effect.event = event;
         try {
             options.effect.behavior = event.context.behavior;
-            event.context.behavior = eval('(' + options.effect.behavior + ')');
+            event.context.behavior = compileBehavior(options.effect.behavior);
             event.context.behavior(event.message);  // execute actor behavior
             options.effect.became = event.context.behavior.toString();
             event.context.behavior = options.effect.became;
