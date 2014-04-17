@@ -80,13 +80,13 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.saveCheckpoint = options.saveCheckpoint || function saveCheckpoint(callback) {
         // If effect is empty, checkpoint is done.
-        if (effectIsEmpty(options.effect)) { return callback(false); }
+        if (options.effectIsEmpty(options.effect)) { return callback(false); }
         // Write effect to log.
         options.logEffect(function (error) {
             if (error) { return callback(error); }
             // If effect is an error, clear effect, checkpoint is done.
-            if (effectIsError(options.effect)) {
-                options.effect = newEffect();
+            if (options.effectIsError(options.effect)) {
+                options.effect = options.newEffect();
                 return callback(false);
             }
             // Add messages sent, if any, to event queue.
@@ -95,7 +95,7 @@ module.exports.checkpoint = function checkpoint(options) {
             options.persistState(function (error) {
                 if (error) { return callback(error); }
                 // Initialize empty effect.
-                options.effect = newEffect();
+                options.effect = options.newEffect();
                 // Checkpoint is done.
                 callback(false);
             });
@@ -118,14 +118,14 @@ module.exports.checkpoint = function checkpoint(options) {
         });
     };
 
-    var newEffect = options.newEffect || function newEffect() {
+    options.newEffect = options.newEffect || function newEffect() {
         return {
             created: [],
             sent: []
         };
     };
 
-    var effectIsEmpty = options.effectIsEmpty || function effectIsEmpty(effect) {
+    options.effectIsEmpty = options.effectIsEmpty || function effectIsEmpty(effect) {
         if (effect.event
         ||  effect.exception
         ||  (effect.sent.length > 0)
@@ -135,7 +135,7 @@ module.exports.checkpoint = function checkpoint(options) {
         return true;
     };
 
-    var effectIsError = options.effectIsError || function effectIsError(effect) {
+    options.effectIsError = options.effectIsError || function effectIsError(effect) {
         if (effect.exception) {
             return true;
         }
@@ -178,7 +178,7 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.events = [];  // queue of pending events (in effect batches)
     
-    options.effect = newEffect();  // initialize empty effect
+    options.effect = options.newEffect();  // initialize empty effect
 
     options.scheduleDispatch = options.scheduleDispatch || function scheduleDispatch() {
         setImmediate(function () {
