@@ -198,9 +198,11 @@ module.exports.checkpoint = function checkpoint(options) {
     var transport = options.transport || sponsor(function transport(message) {
         console.log('transport:', message);
     });
-    var domain = marshal.domain(name, sponsor, transport);
+    var router = marshal.router(sponsor, transport);
+    var domain = router.domain(name);
 
     options.checkpoint = {
+        router: router,
         domain: domain,
         sponsor: function create(behavior, state) {
             state = state || {};
