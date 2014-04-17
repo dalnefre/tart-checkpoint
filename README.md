@@ -82,14 +82,12 @@ and the `context.behavior` is executed with the `message` as a parameter.
 The result of processing the `message` is an `effect`.
 
 An `event` has the following attributes:
-
   * `context`: _Object_ Actor context the message was delivered to.
   * `message`: _Any_ Message that was delivered.
 
 ### Effects
 
 An `effect` is an _Object_ that is the _effect_ of dispatching an `event`. It has the following attributes:
-
   * `became`: _Function_ _(Default: undefined)_ `function (message) {}` If the actor changed its behavior as a result of processing a `message`, the new behavior it became is referenced here.
   * `behavior`: _Function_ _(Default: undefined)_ `function (message) {}` The behavior that executed to cause this `effect`, if any.
   * `created`: _Array_ An array of created contexts. A context is the execution context of an actor behavior (the value of _this_ when the behavior executes).
@@ -105,7 +103,7 @@ An `effect` is an _Object_ that is the _effect_ of dispatching an `event`. It ha
 
   * `options`: _Object_ _(Default: undefined)_ Optional overrides.  
     * `logEffect`: _Function_ `function (callback) {}` 
-        Record `options.effect`, then call `callback(error)`.
+        Record `this.effect`, then call `callback(error)`.
   * Return: _Object_ The checkpoint control object.
     * `router`: _Object_ Router for checkpoint/marshal domain.
     * `domain`: _Object_ Marshal domain.
