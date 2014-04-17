@@ -35,39 +35,38 @@ var tart = require('../index.js');
 var test = module.exports = {};
 
 test['readme example processes two messages'] = function (test) {
-    test.expect(2);
+    test.expect(3);
     var checkpoint = tart.checkpoint();
-
-    var testBar = function (message) {
-        test.equal(message, 'bar');
-    };
-    var testFoo = function (message) {
-        test.equal(message, 'foo');
-        setImmediate(function () {
+    
+    var testFixture = checkpoint.domain.sponsor(function (message) {
+        if (message.step === 'end') {
             test.done();  // test completion
-        });
-    };
-    var testFail = function (message) {
-        test.assert(false);  // should not be called
-    };
+        } else if (message.step === 'foo') {
+            test.equal(message.value, 'foo');
+            this.self({ step:'end' });
+        } else if (message.step === 'bar') {
+            test.equal(message.value, 'bar');
+            test.strictEqual(message.path, require('path'));
+        } else {
+            test.assert(false);  // should not be called
+        }
+    });
 
     var oneTimeBeh = "function oneTimeBeh(message) {"
-        + "    this.state.testBar(message);"
-        + "    var actor = this.sponsor(this.state.createdBeh, this.state);"
-        + "    actor('foo');"
-        + "    this.behavior = this.state.becomeBeh;"
-        + "}";
+        + "this.state.test({ step:'bar', value:message, path:require('path') });"
+        + "var actor = this.sponsor(this.state.createdBeh, this.state);"
+        + "actor('foo');"
+        + "this.behavior = this.state.becomeBeh;"
+    + "}";
 
     var sharedState = {
         createdBeh: "function createdBeh(message) {"
-            + "    this.state.testFoo(message);"
-            + "}",
+            + "this.state.test({ step:'foo', value:message });"
+        + "}",
         becomeBeh: "function becomeBeh(message) {"
-            + "    this.state.testFail(message);"
-            + "}",
-        testBar: testBar,
-        testFoo: testFoo,
-        testFail: testFail
+            + "this.state.test({ step:'fail', value:message });"
+        + "}",
+        test: testFixture
     };
     
     var actor = checkpoint.sponsor(oneTimeBeh, sharedState);

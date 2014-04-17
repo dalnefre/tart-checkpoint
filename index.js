@@ -47,12 +47,12 @@ var marshal = require('tart-marshal');
         2. Write effect to log.
         3. If effect is an error, clear effect, checkpoint is done.
         4. Add messages sent, if any, to event queue.
-        3. Concurrently:
+        5. Concurrently:
             a. Persist actors created, if any.
             b. Persist updated event queue.
             c. Update state/behavior, if changed.
-        4. Initialize empty effect.
-        5. Checkpoint is done.
+        6. Initialize empty effect.
+        7. Checkpoint is done.
 */
 module.exports.checkpoint = function checkpoint(options) {
     options = options || {};

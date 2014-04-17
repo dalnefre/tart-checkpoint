@@ -50,6 +50,29 @@ actor('bar');
 
 ## Documentation
 
+### Algorithm
+
+To _Dispatch_:
+  1. Checkpoint.
+  2. If queue is empty, dispatch is done.
+  3. Dequeue event to dispatch.
+  4. Process event.
+  5. Checkpoint.
+  6. Schedule next dispatch.
+  7. Dispatch is done.
+
+To _Checkpoint_:
+  1. If effect is empty, checkpoint is done.
+  2. Write effect to log.
+  3. If effect is an error, clear effect, checkpoint is done.
+  4. Add messages sent, if any, to event queue.
+  5. Concurrently:
+    * Persist actors created, if any.
+    * Persist updated event queue.
+    * Update state/behavior, if changed.
+  6. Initialize empty effect.
+  7. Checkpoint is done.
+
 ### Events
 
 An `event` is an abstraction around the concept of a `message` being delivered to the actor. 
@@ -77,100 +100,19 @@ An `effect` is an _Object_ that is the _effect_ of dispatching an `event`. It ha
 **Public API**
 
   * [tart.checkpoint(\[options\])](#tartcheckpointoptions)
-  * [checkpoint.dispatch()](#checkpointdispatch)
-  * [checkpoint.eventLoop(\[control\])](#checkpointeventloopcontrol)
-  * [checkpoint.sponsor(behavior)](#checkpointsponsorbehavior)
 
 ### tart.checkpoint(options)
 
   * `options`: _Object_ _(Default: undefined)_ Optional overrides.  
-      WARNING: Implementation of `enqueue` and `dequeue` are tightly coupled and should be overridden together.
-    * `constructConfig`: _Function_ _(Default: `function (options) {}`)_ `function (options) {}` 
-        Configuration creation function that is given `options`. 
-        It should return a capability `function (behavior) {}` to create new actors.
-    * `enqueue`: _Function_ `function (eventQueue, events){}` 
-        Function that enqueues the new `events` onto the `eventQueue` in place, causing side-effects 
-        _(Example: `function (eventQueue, events){ Array.prototype.push.apply(eventQueue, events); }`)_.
-    * `dequeue`: _Function_ `function (eventQueue){}` 
-        Function that returns next event to be dispatched given an `eventQueue` 
-        _(Example: `function (eventQueue){ return eventQueue.shift(); }`)_.
+    * `logEffect`: _Function_ `function (callback) {}` 
+        Record `options.effect`, then call `callback(error)`.
   * Return: _Object_ The checkpoint control object.
-    * `dispatch`: _Function_ `function () {}` 
-        Function to call in order to dispatch a single event.
-    * `eventLoop`: _Function_ `function ([control]) {}` 
-        Function to call in order to dispatch multiple events.
-    * `effect`: _Object_ Accumulated effects from current step.
-    * `sponsor`: _Function_ `function (behavior) {}` 
-        A capability to create new actors.
+    * `router`: _Object_ Router for checkpoint/marshal domain.
+    * `domain`: _Object_ Marshal domain.
+    * `sponsor`: _Function_ `function (behavior[, state]) {}` 
+        A capability to create new actors with persistent state.
 
 Create a checkpoint control object.
-
-### checkpoint.dispatch()
-
-  * Return: _Effect_ or `false`. 
-      Effect of dispatching the next `event` or `false` if no events exists for dispatch.
-
-Dispatch the next `event`.
-
-```javascript
-var tart = require('tart-checkpoint');
-var checkpoint = tart.checkpoint();
-
-var effect = checkpoint.effect;
-console.dir(effect);
-while ((effect = checkpoint.dispatch()) !== false) {
-    console.dir(effect);
-}
-```
-
-### checkpoint.eventLoop([control])
-
-  * `control`: _Object_ _(Default: `undefined`)_ Optional overrides.
-    * `count`: _Number_ _(Default: `undefined`)_ Maximum number of events to dispatch, or unlimited if `undefined`.
-    * `fail`: _Function_ `function (exception) {}` 
-        Function called to report exceptions thrown from an actor behavior. Exceptions are thrown by default. _(Example: `function (exception) {/*ignore exceptions*/}`)_.
-    * `log`: _Function_ `function (effect) {}` 
-        Function called with every effect resulting from an event dispatch.
-  * Return: _Boolean_ `true` if event queue is exhausted, `false` otherwise.
-
-Dispatch events in a manner provided by `control`. 
-
-By default, calling `checkpoint.eventLoop()` with no parameters dispatches all events in the event queue.
-
-```javascript
-var tart = require('tart-checkpoint');
-var checkpoint = tart.checkpoint();
-
-var actor = checkpoint.sponsor(function (message) {
-    console.log(message); 
-});
-actor('foo');
-actor('bar');
-actor('baz');
-
-checkpoint.eventLoop();
-// foo
-// bar
-// baz
-```
-
-### checkpoint.sponsor(behavior)
-
-  * `behavior`: _Function_ `function (message) {}` Actor behavior to invoke every time an actor receives a message.
-  * Return: _Function_ `function (message) {}` Actor reference in form of a capability that can be invoked to send the actor a message.
-
-Creates a new actor and returns the actor reference in form of a capability to send that actor a message.
-
-```javascript
-var tart = require('tart-checkpoint');
-var checkpoint = tart.checkpoint();
-var actor = checkpoint.sponsor(function (message) {
-    console.log('got message', message);
-    console.log(this.self);
-    console.log(this.behavior);
-    console.log(this.sponsor); 
-});
-```
 
 ## Sources
 
