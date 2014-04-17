@@ -73,44 +73,47 @@ test['readme example processes two messages'] = function (test) {
     var actor = checkpoint.sponsor(oneTimeBeh, sharedState);
     actor('bar');
 };
-/*
-test['domain receptionist dispatches to checkpoint actor'] = function (test) {
-    test.expect(2);
 
+test['checkpoint actor communicates with "remote" test domain'] = function (test) {
+    test.expect(2);
     var checkpoint = tart.checkpoint();
 
-    var marshal = require('tart-marshal');
-    var remote = marshal.domain('remote',
-        checkpoint.domain.sponsor,
-        function (message) {
-            console.log('REMOTE?', message);
+    var remote = checkpoint.router.domain('remote');
+    var testBar = remote.sponsor(function (message) {
+        test.equal(message, 'bar');
+    });
+    var testFoo = remote.sponsor(function (message) {
+        test.equal(message, 'foo');
+        setImmediate(function () {
+            test.done();  // test completion
         });
+    });
+    var testFail = remote.sponsor(function (message) {
+        test.assert(false);  // should not be called
+    });
 
     var oneTimeBeh = "function oneTimeBeh(message) {"
-        + "    this.state.test.equal(message, 'bar');"
-        + "    var actor = this.sponsor(this.state.createdBeh, {"
-        + "        test: this.state.test"
-        + "    });"
+        + "    this.state.testBar(message);"
+        + "    var actor = this.sponsor(this.state.createdBeh, this.state);"
         + "    actor('foo');"
         + "    this.behavior = this.state.becomeBeh;"
         + "}";
 
-    var oneTimeState = {
+    var remoteState = {
         createdBeh: "function createdBeh(message) {"
-            + "    this.state.test.equal(message, 'foo');"
-            + "    this.state.test.done();"  // test completion
+            + "    this.state.testFoo(message);"
             + "}",
         becomeBeh: "function becomeBeh(message) {"
-            + "    this.state.test.assert(false);"  // should not be called
+            + "    this.state.testFail(message);"
             + "}",
-        test: test
+        testBar: testBar,
+        testFoo: testFoo,
+        testFail: testFail
     };
-
-    var actor = checkpoint.sponsor(oneTimeBeh, oneTimeState);
-    var token = checkpoint.domain.localToRemote(actor);
-    checkpoint.domain.receptionist({
-        address: token,
-        json: checkpoint.domain.encode('baz')
-    });
+    var json = remote.encode(remoteState);
+    console.log('encodedState:', json);
+    var localState = checkpoint.domain.decode(json);
+    
+    var actor = checkpoint.sponsor(oneTimeBeh, localState);
+    actor('bar');
 };
-*/
