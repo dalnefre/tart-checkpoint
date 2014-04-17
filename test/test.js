@@ -78,36 +78,34 @@ test['checkpoint actor communicates with "remote" test domain'] = function (test
     var checkpoint = tart.checkpoint();
 
     var remote = checkpoint.router.domain('remote');
-    var testBar = remote.sponsor(function (message) {
-        test.equal(message, 'bar');
-    });
-    var testFoo = remote.sponsor(function (message) {
-        test.equal(message, 'foo');
-        setImmediate(function () {
+    var testFixture = remote.sponsor(function (message) {
+        if (message.step === 'end') {
             test.done();  // test completion
-        });
-    });
-    var testFail = remote.sponsor(function (message) {
-        test.assert(false);  // should not be called
+        } else if (message.step === 'foo') {
+            test.equal(message.value, 'foo');
+            this.self({ step:'end' });
+        } else if (message.step === 'bar') {
+            test.equal(message.value, 'bar');
+        } else {
+            test.assert(false);  // should not be called
+        }
     });
 
     var oneTimeBeh = "function oneTimeBeh(message) {"
-        + "    this.state.testBar(message);"
-        + "    var actor = this.sponsor(this.state.createdBeh, this.state);"
-        + "    actor('foo');"
-        + "    this.behavior = this.state.becomeBeh;"
-        + "}";
+        + "this.state.test({ step:'bar', value:message });"
+        + "var actor = this.sponsor(this.state.createdBeh, this.state);"
+        + "actor('foo');"
+        + "this.behavior = this.state.becomeBeh;"
+    + "}";
 
     var remoteState = {
         createdBeh: "function createdBeh(message) {"
-            + "    this.state.testFoo(message);"
-            + "}",
+            + "this.state.test({ step:'foo', value:message });"
+        + "}",
         becomeBeh: "function becomeBeh(message) {"
-            + "    this.state.testFail(message);"
-            + "}",
-        testBar: testBar,
-        testFoo: testFoo,
-        testFail: testFail
+            + "this.state.test({ step:'fail', value:message });"
+        + "}",
+        test: testFixture
     };
     var json = remote.encode(remoteState);
     console.log('encodedState:', json);
