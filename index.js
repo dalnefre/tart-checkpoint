@@ -103,7 +103,8 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     var logEffect = options.logEffect || function logEffect(callback) {
-        console.log('logEffect:', options.effect);
+        var json = domain.encode(options.effect);
+        console.log('logEffect:', json);
         setImmediate(function () {
             callback(false);
         });
