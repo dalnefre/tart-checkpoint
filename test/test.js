@@ -95,15 +95,12 @@ test['checkpoint actor communicates with "remote" test domain'] = function (test
         + "this.state.test({ step:'bar', value:message });"
         + "var actor = this.sponsor(this.state.createdBeh, this.state);"
         + "actor('foo');"
-        + "this.behavior = this.state.becomeBeh;"
+        + "this.behavior = require('./beh_lib.js').became;"
     + "}";
 
     var remoteState = {
         createdBeh: "function createdBeh(message) {"
             + "this.state.test({ step:'foo', value:message });"
-        + "}",
-        becomeBeh: "function becomeBeh(message) {"
-            + "this.state.test({ step:'fail', value:message });"
         + "}",
         test: testFixture
     };
