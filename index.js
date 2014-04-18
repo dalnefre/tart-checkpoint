@@ -201,6 +201,18 @@ module.exports.checkpoint = function checkpoint(options) {
     });
     var router = marshal.router(sponsor, transport);
     var domain = router.domain(name);
+    var receptionist = domain.receptionist;
+    domain.receptionist = function checkpointReceptionist(message) {
+        receptionist(message);  // delegate to original receptionist
+        console.log('checkpointReceptionist:', message);
+        setImmediate(function () {
+            setImmediate(function () {
+                options.scheduleDispatch();  // trigger checkpoint scheduler
+                console.log('scheduleDispatch:', message);
+            });  // FIXME: THIS DELAY IS A *HACK*
+            console.log('setImmediate...:', message);
+        });  // FIXME: THIS DELAY IS A *HACK*
+    };
 
     options.checkpoint = {
         router: router,
