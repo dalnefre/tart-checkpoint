@@ -196,22 +196,13 @@ module.exports.checkpoint = function checkpoint(options) {
     
     var name = options.name || 'checkpoint';
     var sponsor = options.sponsor || tart.minimal();
-    var transport = options.transport || sponsor(function transport(message) {
-        console.log('transport:', message);
-    });
-    var router = marshal.router(sponsor, transport);
+    var router = marshal.router(sponsor);
     var domain = router.domain(name);
     var receptionist = domain.receptionist;
     domain.receptionist = function checkpointReceptionist(message) {
-        receptionist(message);  // delegate to original receptionist
         console.log('checkpointReceptionist:', message);
-        setImmediate(function () {
-            setImmediate(function () {
-                options.scheduleDispatch();  // trigger checkpoint scheduler
-                console.log('scheduleDispatch:', message);
-            });  // FIXME: THIS DELAY IS A *HACK*
-            console.log('setImmediate...:', message);
-        });  // FIXME: THIS DELAY IS A *HACK*
+        receptionist(message);  // delegate to original receptionist
+        options.scheduleDispatch();  // trigger checkpoint scheduler
     };
 
     options.checkpoint = {

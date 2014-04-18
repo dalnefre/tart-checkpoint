@@ -135,13 +135,13 @@ test['can balance transfer between persistent acccounts'] = function (test) {
     
     var account0 = checkpoint.sponsor(accountBeh, { balance: 0 });
     var account1 = checkpoint.sponsor(accountBeh, { balance: 42 });
-
+/*
     var consoleBeh = (function consoleBeh(message) {
         console.log('console:', message);
     }).toString();
     var consoleLog = checkpoint.sponsor(consoleBeh);
     account0({ type: 'balance', ok: consoleLog });
-
+*/
     var remote = checkpoint.router.domain('remote');
 
     var token0 = checkpoint.domain.localToRemote(account0);
@@ -151,13 +151,15 @@ test['can balance transfer between persistent acccounts'] = function (test) {
     var proxy1 = remote.remoteToLocal(token1);
     
     var endTest = remote.sponsor(function (message) {
+    	console.log('endTest:', message);
         test.done();  // signal test completion
     });
     var failTest = remote.sponsor(function (message) {
-        console.log('FAIL!', message);
+        console.log('failTest:', message);
         test.assert(false);  // should not be called
     });
     var expect42 = remote.sponsor(function (message) {
+    	console.log('expect42:', message);
         test.equal(message, 42);
         endTest();
     });
