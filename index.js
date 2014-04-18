@@ -180,9 +180,18 @@ module.exports.checkpoint = function checkpoint(options) {
     
     options.effect = options.newEffect();  // initialize empty effect
 
+	options.inDispatch = false;
     options.scheduleDispatch = options.scheduleDispatch || function scheduleDispatch() {
         setImmediate(function () {
-            options.dispatchEvent(options.errorHandler);
+			console.log('scheduleDispatch:', options.inDispatch);
+        	if (options.inDispatch) {
+        		options.errorHandler(new Error('DISPATCH RE-ENTRY'));
+        	}
+        	options.inDispatch = true;
+            options.dispatchEvent(function (error) {
+            	options.inDispatch = false;
+            	options.errorHandler(error);
+            });
         });
     };
 
