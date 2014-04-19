@@ -213,6 +213,11 @@ module.exports.checkpoint = function checkpoint(options) {
         receptionist(message);  // delegate to original receptionist
         options.scheduleDispatch();  // trigger checkpoint scheduler
     };
+    var transport = domain.transport;
+    domain.transport = function checkpointTransport(message) {
+        console.log('checkpointTransport:', message);
+        transport(message);  // delegate to original transport
+    };
 
     options.checkpoint = {
         router: router,
