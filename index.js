@@ -57,6 +57,22 @@ var marshal = require('tart-marshal');
 module.exports.checkpoint = function checkpoint(options) {
     options = options || {};
     
+    var name = options.name || 'checkpoint';
+    var sponsor = options.sponsor || tart.minimal();
+    var router = marshal.router(sponsor);
+    var domain = router.domain(name);
+    var receptionist = domain.receptionist;
+    domain.receptionist = function checkpointReceptionist(message) {
+        console.log('checkpointReceptionist:', message);
+        receptionist(message);  // delegate to original receptionist
+        options.scheduleDispatch();  // trigger checkpoint scheduler
+    };
+    var transport = domain.transport;
+    domain.transport = function checkpointTransport(message) {
+        console.log('checkpointTransport:', message);
+        transport(message);  // delegate to original transport
+    };
+
     options.dispatchEvent = options.dispatchEvent || function dispatchEvent(callback) {
         // Checkpoint.
         options.saveCheckpoint(function (error) {
@@ -203,22 +219,6 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.scheduleDispatch();  // prime the pump...
     
-    var name = options.name || 'checkpoint';
-    var sponsor = options.sponsor || tart.minimal();
-    var router = marshal.router(sponsor);
-    var domain = router.domain(name);
-    var receptionist = domain.receptionist;
-    domain.receptionist = function checkpointReceptionist(message) {
-        console.log('checkpointReceptionist:', message);
-        receptionist(message);  // delegate to original receptionist
-        options.scheduleDispatch();  // trigger checkpoint scheduler
-    };
-    var transport = domain.transport;
-    domain.transport = function checkpointTransport(message) {
-        console.log('checkpointTransport:', message);
-        transport(message);  // delegate to original transport
-    };
-
     options.checkpoint = {
         router: router,
         domain: domain,
