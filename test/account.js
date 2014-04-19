@@ -35,6 +35,7 @@ var tart = require('../index.js');
 var test = module.exports = {};
 
 var accountBeh = (function accountBeh(message) {
+    console.log('account:', message);
     if (message.type === 'balance') {
         // { type:'balance', ok:, fail: }
         message.ok(this.state.balance);
@@ -114,7 +115,7 @@ test['can check balance of persistent acccount'] = function (test) {
 };
 
 test['can balance transfer between persistent acccounts'] = function (test) {
-    test.expect(1);
+    test.expect(2);
     var checkpoint = tart.checkpoint();
 
     var account0 = checkpoint.sponsor(accountBeh, { balance: 0 });
@@ -130,18 +131,22 @@ test['can balance transfer between persistent acccounts'] = function (test) {
         console.log('failTest:', message);
         test.assert(false);  // should not be called
     });
+    var srcAcct;  // filled in by runTest
     var expect13 = remote.sponsor(function (message) {
         console.log('expect13:', message);
         test.equal(message, 13);
-        endTest();
+        setImmediate(function () {  // FIXME: THIS IS A HACK TO DELAY BALANCE CHECK PROCESSING
+            srcAcct({ type:'balance', ok:expect29, fail:failTest });
+        });
     });
-    var expect42 = remote.sponsor(function (message) {
-        console.log('expect42:', message);
-        test.equal(message, 42);
+    var expect29 = remote.sponsor(function (message) {
+        console.log('expect29:', message);
+        test.equal(message, 29);
         endTest();
     });
     var runTest = remote.sponsor(function (message) {
         // { trans:, from:, to: }
+        srcAcct = message.from;
         message.trans({
             from: message.from,
             to: message.to,
