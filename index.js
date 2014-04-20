@@ -72,6 +72,37 @@ module.exports.checkpoint = function checkpoint(options) {
         console.log('checkpointTransport:', message);
         transport(message);  // delegate to original transport
     };
+    
+    var eventBuffer = sponsor((function () {
+        var queue = []; //options.events;  // alias event queue
+        var bufferReadyBeh = function (message) {
+            if (message.op === 'put') {  // { op:'put', event:{...} }
+                eventConsumer(message.event);
+                this.behavior = bufferWaitBeh;
+                queue.push(message.event);
+            }
+        };
+        var bufferWaitBeh = function (message) {
+            if (message.op === 'take') {  // { op:'take' }
+                if (queue.length) {
+                    var event = queue.shift();
+                    eventConsumer(event);
+                } else {
+                    this.behavior = bufferReadyBeh;
+                }
+            } else if (message.op === 'put') {  // { op:'put', event:{...} }
+                queue.push(message.event);
+            }
+        };
+        return bufferReadyBeh;
+    })());
+    var eventConsumer = sponsor((function () {
+        var eventConsumerBeh = function consumerBeh(event) {
+            options.processEvent(message.event);
+            eventBuffer({ op:'take' });
+        };
+        return eventConsumerBeh;
+    })());
 
     options.dispatchEvent = options.dispatchEvent || function dispatchEvent(callback) {
         // Checkpoint.
