@@ -46,6 +46,7 @@ module.exports.checkpoint = function checkpoint(options) {
     domain.receptionist = function checkpointReceptionist(message) {
         console.log('checkpointReceptionist:', message);
         receptionist(message);  // delegate to original receptionist
+        options.saveCheckpoint(options.errorHandler);
     };
     var transport = domain.transport;
     domain.transport = function checkpointTransport(message) {

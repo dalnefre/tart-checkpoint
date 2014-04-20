@@ -33,7 +33,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 var tart = require('../index.js');
 
 var test = module.exports = {};
-test = {};  // FIXME: **** THIS DISABLES ALL TESTS IN THIS SUITE ****
 
 var accountBeh = (function accountBeh(message) {
     console.log('account:', message);
@@ -136,9 +135,7 @@ test['can balance transfer between persistent acccounts'] = function (test) {
     var expect13 = remote.sponsor(function (message) {
         console.log('expect13:', message);
         test.equal(message, 13);
-        setImmediate(function () {  // FIXME: THIS IS A HACK TO DELAY BALANCE CHECK PROCESSING
-            srcAcct({ type:'balance', ok:expect29, fail:failTest });
-        });
+        srcAcct({ type:'balance', ok:expect29, fail:failTest });
     });
     var expect29 = remote.sponsor(function (message) {
         console.log('expect29:', message);
