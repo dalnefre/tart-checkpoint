@@ -80,6 +80,7 @@ test['checkpoint actor communicates with "remote" test domain'] = function (test
 
     var remote = checkpoint.router.domain('remote');
     var testFixture = remote.sponsor(function (message) {
+        console.log('testFixture:', message);
         if (message.step === 'end') {
             test.done();  // test completion
         } else if (message.step === 'foo') {

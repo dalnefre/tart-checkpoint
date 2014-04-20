@@ -51,7 +51,7 @@ module.exports.checkpoint = function checkpoint(options) {
     var transport = domain.transport;
     domain.transport = function checkpointTransport(message) {
         console.log('checkpointTransport:', message);
-        transport(message);  // delegate to original transport
+        options.effect.output.push(message);  // buffer output messages
     };
     
     var eventBuffer = sponsor((function () {
@@ -108,7 +108,7 @@ module.exports.checkpoint = function checkpoint(options) {
             if (options.effectIsError(effect)) { return callback(false); }
             // Add messages sent, if any, to event queue.
             options.applyEffect(effect);
-            // Persist global state
+            // Persist global state --- FIXME *** STATE IS NOT STABLE AT THIS POINT ***
             options.persistState(effect, options.events, callback);
         });
     };
@@ -122,8 +122,8 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     options.persistState = options.persistState || function persistState(effect, events, callback) {
-        console.log('persistState effect:', effect);
-        console.log('persistState events:', events);
+//        console.log('persistState effect:', effect);
+//        console.log('persistState events:', events);
         setImmediate(function () {
             callback(false);
         });
@@ -132,12 +132,14 @@ module.exports.checkpoint = function checkpoint(options) {
     options.newEffect = options.newEffect || function newEffect() {
         return {
             created: [],
-            sent: []
+            sent: [],
+            output: []
         };
     };
     options.effectIsEmpty = options.effectIsEmpty || function effectIsEmpty(effect) {
         if (effect.event
         ||  effect.exception
+        ||  (effect.output.length > 0)
         ||  (effect.sent.length > 0)
         ||  (effect.created.length > 0)) {
             return false;
@@ -153,6 +155,7 @@ module.exports.checkpoint = function checkpoint(options) {
     options.applyEffect = options.applyEffect || function applyEffect(effect) {
         console.log('applyEffect:', effect);
         effect.sent.forEach(eventBuffer);  // enqueue sent events
+        effect.output.forEach(transport);  // output to original transport
     };
 
     

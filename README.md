@@ -94,6 +94,7 @@ An `effect` is an _Object_ that is the _effect_ of dispatching an `event`. It ha
   * `event`: _Object_ _(Default: undefined)_ The event that is the cause of this `effect`, if any.
   * `exception`: _Error_ _(Default: undefined)_ If dispatching the `event` caused an exception, that exception is stored here.
   * `sent`: _Array_ An array of `events` that represent messages sent by the actor as a result of processing a `message`.
+  * `output`: _Array_ An array of transport-encoded remote-messages sent by the actor as a result of processing a `message`.
 
 **Public API**
 
@@ -102,8 +103,8 @@ An `effect` is an _Object_ that is the _effect_ of dispatching an `event`. It ha
 ### tart.checkpoint(options)
 
   * `options`: _Object_ _(Default: undefined)_ Optional overrides.  
-    * `logEffect`: _Function_ `function (callback) {}` 
-        Record `this.effect`, then call `callback(error)`.
+    * `logEffect`: _Function_ `function (effect, callback) {}` 
+        Record `effect`, then call `callback(error)`.
   * Return: _Object_ The checkpoint control object.
     * `router`: _Object_ Router for checkpoint/marshal domain.
     * `domain`: _Object_ Marshal domain.
