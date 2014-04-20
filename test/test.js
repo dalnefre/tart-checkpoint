@@ -39,6 +39,7 @@ test['readme example processes two messages'] = function (test) {
     var checkpoint = tart.checkpoint();
     
     var testFixture = checkpoint.domain.sponsor(function (message) {
+        console.log('testFixture:', message);
         if (message.step === 'end') {
             test.done();  // test completion
         } else if (message.step === 'foo') {

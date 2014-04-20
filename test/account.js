@@ -33,6 +33,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 var tart = require('../index.js');
 
 var test = module.exports = {};
+test = {};  // FIXME: **** THIS DISABLES ALL TESTS IN THIS SUITE ****
 
 var accountBeh = (function accountBeh(message) {
     console.log('account:', message);
