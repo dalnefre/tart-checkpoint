@@ -40,7 +40,7 @@ module.exports.checkpoint = function checkpoint(options) {
     
     var name = options.name || 'checkpoint';
     var sponsor = options.sponsor || tart.minimal();
-    var router = marshal.router(sponsor);
+    var router = marshal.router();
     var domain = router.domain(name);
     var receptionist = domain.receptionist;
     domain.receptionist = function checkpointReceptionist(message) {

@@ -37,8 +37,9 @@ var test = module.exports = {};
 test['readme example processes two messages'] = function (test) {
     test.expect(3);
     var checkpoint = tart.checkpoint();
-    
-    var testFixture = checkpoint.domain.sponsor(function (message) {
+    var sponsor = require('tart').minimal();
+
+    var testFixture = sponsor(function (message) {
         console.log('testFixture:', message);
         if (message.step === 'end') {
             test.done();  // test completion
@@ -77,9 +78,10 @@ test['readme example processes two messages'] = function (test) {
 test['checkpoint actor communicates with "remote" test domain'] = function (test) {
     test.expect(2);
     var checkpoint = tart.checkpoint();
+    var sponsor = require('tart').minimal();
 
     var remote = checkpoint.router.domain('remote');
-    var testFixture = remote.sponsor(function (message) {
+    var testFixture = sponsor(function (message) {
         console.log('testFixture:', message);
         if (message.step === 'end') {
             test.done();  // test completion

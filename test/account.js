@@ -86,6 +86,7 @@ var transferBeh = (function transferBeh(message) {
 test['can check balance of persistent acccount'] = function (test) {
     test.expect(1);
     var checkpoint = tart.checkpoint();
+    var sponsor = require('tart').minimal();
 
     var account = checkpoint.sponsor(accountBeh, { balance: 42 });
 /*
@@ -99,15 +100,15 @@ test['can check balance of persistent acccount'] = function (test) {
     var token = checkpoint.domain.localToRemote(account);
     var proxy = remote.remoteToLocal(token);
 
-    var endTest = remote.sponsor(function (message) {
+    var endTest = sponsor(function (message) {
         console.log('endTest:', message);
         test.done();  // signal test completion
     });
-    var failTest = remote.sponsor(function (message) {
+    var failTest = sponsor(function (message) {
         console.log('failTest:', message);
         test.assert(false);  // should not be called
     });
-    var expect42 = remote.sponsor(function (message) {
+    var expect42 = sponsor(function (message) {
         console.log('expect42:', message);
         test.equal(message, 42);
         endTest();
@@ -118,32 +119,33 @@ test['can check balance of persistent acccount'] = function (test) {
 test['can balance transfer between persistent acccounts'] = function (test) {
     test.expect(2);
     var checkpoint = tart.checkpoint();
+    var sponsor = require('tart').minimal();
 
     var account0 = checkpoint.sponsor(accountBeh, { balance: 0 });
     var account1 = checkpoint.sponsor(accountBeh, { balance: 42 });
     var transAct = checkpoint.sponsor(transferBeh);
 
     var remote = checkpoint.router.domain('remote');
-    var endTest = remote.sponsor(function (message) {
+    var endTest = sponsor(function (message) {
         console.log('endTest:', message);
         test.done();  // signal test completion
     });
-    var failTest = remote.sponsor(function (message) {
+    var failTest = sponsor(function (message) {
         console.log('failTest:', message);
         test.assert(false);  // should not be called
     });
     var srcAcct;  // filled in by runTest
-    var expect13 = remote.sponsor(function (message) {
+    var expect13 = sponsor(function (message) {
         console.log('expect13:', message);
         test.equal(message, 13);
         srcAcct({ type:'balance', ok:expect29, fail:failTest });
     });
-    var expect29 = remote.sponsor(function (message) {
+    var expect29 = sponsor(function (message) {
         console.log('expect29:', message);
         test.equal(message, 29);
         endTest();
     });
-    var runTest = remote.sponsor(function (message) {
+    var runTest = sponsor(function (message) {
         // { trans:, from:, to: }
         srcAcct = message.from;
         message.trans({
