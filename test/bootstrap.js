@@ -227,8 +227,8 @@ var pingBeh = (function pingBeh(count) {
     }
 }).toString();
 
-var pongBeh = (function pongInit(ping) {
-    this.state.ping = ping;
+var pongBeh = (function pongInit(message) {
+    this.state.ping = message.ping;
     this.behavior = (function pongBeh(count) {
         console.log('pongBeh:', count);
         if (count > 0) {
@@ -237,6 +237,7 @@ var pongBeh = (function pongInit(ping) {
             this.state.done('pong');
         }
     }).toString();
+    message.done();  // init done
 }).toString();
 
 test['ping/pong counts down and terminates'] = function (test) {
@@ -256,7 +257,9 @@ test['ping/pong counts down and terminates'] = function (test) {
     
     var pong = checkpoint.sponsor(pongBeh, { done:doneProxy });
     var ping = checkpoint.sponsor(pingBeh, { pong:pong, done:doneProxy });
+    var start = checkpoint.sponsor((function () {
+        this.state.ping(3);
+    }).toString(), { ping:ping });
 
-    pong(ping);
-    ping(3);
+    pong({ ping:ping, done:start });
 };
