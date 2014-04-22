@@ -173,3 +173,90 @@ test['can check balance of reloaded acccount'] = function (test) {
     });
     proxy({ type: 'balance', ok: expect42, fail: failTest });
 };
+
+var ringBuilderBeh = (function ringBuilderBeh(message) {
+    // { seed:actor, m:links, n:cycles, done:actor }
+    if (--message.m > 0) {  // FIXME: MESSAGE CONTENTS SHOULD BE IMMUTABLE
+        this.state.next = this.sponsor(this.behavior);
+        this.state.next(message);
+        this.behavior = (function ringLinkBeh(n) {
+            this.state.next(n);
+        }).toString();
+    } else {
+        this.state.next = message.seed;
+        this.state.done = message.done;
+        this.behavior = (function ringLastBeh(n) {
+            if (--n > 0) {
+                this.state.next(n);
+            } else {
+                this.state.done(this.state.next);
+            }
+        }).toString();
+        message.seed(message.n);
+    }
+}).toString();
+
+test['ring counts down and terminates'] = function (test) {
+    test.expect(1);
+    var checkpoint = tart.checkpoint();
+
+    var sponsor = require('tart').minimal();
+    var doneTest = sponsor(function (message) {
+        console.log('doneTest:', message);
+        test.equal(message, ringProxy);
+        test.done();
+    });
+    var remote = checkpoint.router.domain('remote');
+
+    var doneToken = remote.localToRemote(doneTest);
+    var doneProxy = checkpoint.domain.remoteToLocal(doneToken);
+
+    var ring = checkpoint.sponsor(ringBuilderBeh);
+    var ringToken = checkpoint.domain.localToRemote(ring);
+    var ringProxy = remote.remoteToLocal(ringToken);
+
+    ring({ seed:ring, m:5, n:3, done:doneProxy });
+};
+
+var pingBeh = (function pingBeh(count) {
+    console.log('pingBeh:', count);
+    if (count > 0) {
+        this.state.pong(--count);
+    } else {
+        this.state.done('ping');
+    }
+}).toString();
+
+var pongBeh = (function pongInit(ping) {
+    this.state.ping = ping;
+    this.behavior = (function pongBeh(count) {
+        console.log('pongBeh:', count);
+        if (count > 0) {
+            this.state.ping(--count);
+        } else {
+            this.state.done('pong');
+        }
+    }).toString();
+}).toString();
+
+test['ping/pong counts down and terminates'] = function (test) {
+    test.expect(1);
+    var checkpoint = tart.checkpoint();
+
+    var sponsor = require('tart').minimal();
+    var doneTest = sponsor(function (message) {
+        console.log('doneTest:', message);
+        test.equal(message, 'pong');
+        test.done();
+    });
+    var remote = checkpoint.router.domain('remote');
+
+    var doneToken = remote.localToRemote(doneTest);
+    var doneProxy = checkpoint.domain.remoteToLocal(doneToken);
+    
+    var pong = checkpoint.sponsor(pongBeh, { done:doneProxy });
+    var ping = checkpoint.sponsor(pingBeh, { pong:pong, done:doneProxy });
+
+    pong(ping);
+    ping(3);
+};
