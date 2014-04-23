@@ -218,17 +218,16 @@ test['ring counts down and terminates'] = function (test) {
     ring({ seed:ring, m:5, n:3, done:doneProxy });
 };
 
-var pingBeh = (function pingBeh(count) {
-    console.log('pingBeh:', count);
-    if (count > 0) {
-        this.state.pong(--count);
-    } else {
-        this.state.done('ping');
-    }
-}).toString();
-
-var pongBeh = (function pongInit(message) {
-    this.state.ping = message.ping;
+var pingPongBeh = (function pingPongBeh(message) {
+    this.state.done = message.done;
+    this.state.ping = this.sponsor((function pingBeh(count) {
+        console.log('pingBeh:', count);
+        if (count > 0) {
+            this.state.pong(--count);
+        } else {
+            this.state.done('ping');
+        }
+    }).toString(), { pong:this.self, done:this.state.done });
     this.behavior = (function pongBeh(count) {
         console.log('pongBeh:', count);
         if (count > 0) {
@@ -237,12 +236,39 @@ var pongBeh = (function pongInit(message) {
             this.state.done('pong');
         }
     }).toString();
-    message.done();  // init done
+    this.state.ping(message.n);  // start
 }).toString();
 
-test['ping/pong counts down and terminates'] = function (test) {
+test['ping/pong generates accurate snapshots'] = function (test) {
     test.expect(1);
-    var checkpoint = tart.checkpoint();
+    var snapshot = { actors:[], events:[] };
+    var logSnapshot = function logSnapshot(effect, callback) {
+        var exception = false;
+        var domain = this.checkpoint.domain;
+        console.log('logSnapshot:', domain.encode(effect));
+        try {
+            effect.created.forEach(function (context) {
+                var token = domain.localToRemote(context.self);
+                snapshot.actors[token] = {
+                    state: domain.encode(context.state),
+                    behavior: context.behavior
+                };
+            });
+            effect.sent.forEach(function (event) {
+                snapshot.events.push({
+                    message: domain.encode(event.message),
+                    actor: domain.localToRemote(event.context.self)
+                });
+            });
+            console.log('snapshot:', snapshot);
+        } catch (ex) {
+            exception = ex;
+        }
+        setImmediate(function () {
+            callback(exception);
+        });
+    };
+    var checkpoint = tart.checkpoint({ logEffect:logSnapshot });
 
     var sponsor = require('tart').minimal();
     var doneTest = sponsor(function (message) {
@@ -255,11 +281,6 @@ test['ping/pong counts down and terminates'] = function (test) {
     var doneToken = remote.localToRemote(doneTest);
     var doneProxy = checkpoint.domain.remoteToLocal(doneToken);
     
-    var pong = checkpoint.sponsor(pongBeh, { done:doneProxy });
-    var ping = checkpoint.sponsor(pingBeh, { pong:pong, done:doneProxy });
-    var start = checkpoint.sponsor((function () {
-        this.state.ping(3);
-    }).toString(), { ping:ping });
-
-    pong({ ping:ping, done:start });
+    var seed = checkpoint.sponsor(pingPongBeh);
+    seed({ n:3, done:doneProxy });
 };
