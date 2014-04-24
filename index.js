@@ -52,7 +52,7 @@ module.exports.checkpoint = function checkpoint(options) {
     var transport = domain.transport;
     domain.transport = function checkpointTransport(message) {
         console.log('checkpointTransport:', message);
-        options.effect.output.push(message);  // buffer output messages
+        options.addOutput(message);  // buffer output messages
     };
     
     var eventBuffer = sponsor((function () {
@@ -95,6 +95,24 @@ module.exports.checkpoint = function checkpoint(options) {
         return eventConsumerBeh;
     })());
 
+    options.processEvent = options.processEvent || function processEvent(event) {
+        console.log('processEvent event:', event);
+        options.effect.event = event;
+        options.effect.behavior = event.context.behavior;
+        try {
+            event.context.behavior = options.compileBehavior(options.effect.behavior);
+            event.context.behavior(event.message);  // execute actor behavior
+            options.effect.became = event.context.behavior.toString();
+            event.context.behavior = options.effect.became;
+        } catch (exception) {
+            options.effect.exception = exception;
+        }
+        console.log('processEvent effect:', options.effect);
+    }
+    options.compileBehavior = options.compileBehavior || function compileBehavior(source) {
+        return eval('(' + source + ')');  // must produce a Function
+    };
+
     options.saveCheckpoint = options.saveCheckpoint || function saveCheckpoint(callback) {
         var effect = options.effect;
         console.log('saveCheckpoint:', effect);
@@ -122,11 +140,63 @@ module.exports.checkpoint = function checkpoint(options) {
         });
     };
 
+    options.applyEffect = options.applyEffect || function applyEffect(effect) {
+        console.log('applyEffect:', effect);
+        effect.sent.forEach(eventBuffer);  // enqueue sent events
+        effect.output.forEach(transport);  // output to original transport
+    };
+
     options.persistState = options.persistState || function persistState(effect, events, callback) {
 //        console.log('persistState effect:', effect);
 //        console.log('persistState events:', events);
         setImmediate(function () {
             callback(false);
+        });
+    };
+
+    var snapshot = { actors:[], events:[] };
+    var logSnapshot = function logSnapshot(effect, callback) {
+        var exception = false;
+        console.log('logSnapshot:', checkpoint.domain.encode(effect));
+        try {
+            if (effect.event) {  // remove processed event
+                var event = snapshot.events.shift();
+                if ((event.seq != effect.event.seq)
+                ||  (event.time != effect.event.time)) {
+                    throw new Error('Wrong event!'
+                        + ' expect:'+event.seq+'@'+event.time
+                        + ' actual:'+effect.event.seq+'@'+effect.event.time);
+                }
+                if (!effect.exception) {
+                    snapshotContext(effect.event.context);  // update actor state/behavior
+                }
+                // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
+            }
+            if (!effect.exception) {
+                effect.created.forEach(snapshotContext);
+                effect.sent.forEach(snapshotEvent);
+            }
+            console.log('snapshot:', snapshot);
+        } catch (ex) {
+            exception = ex;
+        }
+        setImmediate(function () {
+            callback(exception);
+        });
+    };
+    var snapshotContext = function snapshotContext(context) {
+        var token = checkpoint.domain.localToRemote(context.self);
+        snapshot.actors[token] = {
+            state: checkpoint.domain.encode(context.state),
+            behavior: context.behavior
+        };
+    };
+    var snapshotEvent = function snapshotEvent(event) {
+        snapshot.events.push({
+            time: event.time,
+            seq: event.seq,
+            message: checkpoint.domain.encode(event.message),
+            token: checkpoint.domain.localToRemote(event.context.self)
         });
     };
 
@@ -153,57 +223,31 @@ module.exports.checkpoint = function checkpoint(options) {
         }
         return false;
     };
-    options.applyEffect = options.applyEffect || function applyEffect(effect) {
-        console.log('applyEffect:', effect);
-        effect.sent.forEach(eventBuffer);  // enqueue sent events
-        effect.output.forEach(transport);  // output to original transport
-    };
-
     
-    options.compileBehavior = options.compileBehavior || function compileBehavior(source) {
-        return eval('(' + source + ')');  // must produce a Function
-    };
-
-    options.processEvent = options.processEvent || function processEvent(event) {
-        console.log('processEvent event:', event);
-        options.effect.event = event;
-        options.effect.behavior = event.context.behavior;
-        try {
-            event.context.behavior = options.compileBehavior(options.effect.behavior);
-            event.context.behavior(event.message);  // execute actor behavior
-            options.effect.became = event.context.behavior.toString();
-            event.context.behavior = options.effect.became;
-        } catch (exception) {
-            options.effect.exception = exception;
-        }
-        console.log('processEvent effect:', options.effect);
-    }
-
-    options.effect = options.newEffect();  // initialize empty effect
-
-    options.errorHandler = options.errorHandler || function errorHandler(error) {
-        if (error) {
-            console.log('FAIL!', error);
-        }
-    };
-    
-    options.newContext = options.newContext || function newContext(context) {
+    options.addContext = options.addContext || function addContext(context) {
         options.effect.created.push(context);
         return context;
     };
 
     var eventSeq = 0;
-    options.newEvent = options.newEvent || function newEvent(event) {
+    options.addEvent = options.addEvent || function addEvent(event) {
         event.time = Date.now();
         event.seq = ++eventSeq;
         options.effect.sent.push(event);
         return event;
     };
 
-    setImmediate(function () {  // prime the pump...
-        options.saveCheckpoint(options.errorHandler);
-    });
-    
+    options.addOutput = options.addOutput || function addOutput(message) {
+        options.effect.output.push(message);
+        return message;
+    };
+
+    options.errorHandler = options.errorHandler || function errorHandler(error) {
+        if (error) {
+            console.log('FAIL!', error);
+        }
+    };
+
     options.checkpoint = {
         router: router,
         domain: domain,
@@ -214,7 +258,7 @@ module.exports.checkpoint = function checkpoint(options) {
                     message: message,
                     context: context
                 };
-                options.newEvent(event);
+                options.addEvent(event);
             };
             var context = {
                 self: actor,
@@ -222,10 +266,15 @@ module.exports.checkpoint = function checkpoint(options) {
                 behavior: behavior.toString(),
                 sponsor: create
             };
-            options.newContext(context);
+            options.addContext(context);
             return actor;
         }
     };
 
+    options.effect = options.newEffect();  // initialize empty effect
+    setImmediate(function () {  // prime the pump...
+        options.saveCheckpoint(options.errorHandler);
+    });
+    
     return options.checkpoint;
 };
