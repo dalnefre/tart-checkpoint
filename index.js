@@ -186,6 +186,19 @@ module.exports.checkpoint = function checkpoint(options) {
             console.log('FAIL!', error);
         }
     };
+    
+    options.newContext = options.newContext || function newContext(context) {
+        options.effect.created.push(context);
+        return context;
+    };
+
+    var eventSeq = 0;
+    options.newEvent = options.newEvent || function newEvent(event) {
+        event.time = Date.now();
+        event.seq = ++eventSeq;
+        options.effect.sent.push(event);
+        return event;
+    };
 
     setImmediate(function () {  // prime the pump...
         options.saveCheckpoint(options.errorHandler);
@@ -201,7 +214,7 @@ module.exports.checkpoint = function checkpoint(options) {
                     message: message,
                     context: context
                 };
-                options.effect.sent.push(event);
+                options.newEvent(event);
             };
             var context = {
                 self: actor,
@@ -209,7 +222,7 @@ module.exports.checkpoint = function checkpoint(options) {
                 behavior: behavior.toString(),
                 sponsor: create
             };
-            options.effect.created.push(context);
+            options.newContext(context);
             return actor;
         }
     };
