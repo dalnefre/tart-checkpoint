@@ -244,28 +244,42 @@ test['ping/pong generates accurate snapshots'] = function (test) {
     var snapshot = { actors:[], events:[] };
     var logSnapshot = function logSnapshot(effect, callback) {
         var exception = false;
-        var domain = this.checkpoint.domain;
-        console.log('logSnapshot:', domain.encode(effect));
+        console.log('logSnapshot:', checkpoint.domain.encode(effect));
+        // FIXME: WHAT SHOULD WE DO WITH EXCEPTION EVENTS?
         try {
-            effect.created.forEach(function (context) {
-                var token = domain.localToRemote(context.self);
-                snapshot.actors[token] = {
-                    state: domain.encode(context.state),
-                    behavior: context.behavior
-                };
-            });
-            effect.sent.forEach(function (event) {
-                snapshot.events.push({
-                    message: domain.encode(event.message),
-                    actor: domain.localToRemote(event.context.self)
-                });
-            });
+            if (effect.event) {  // remove processed event
+                var event = snapshot.events.shift();
+                if ((event.seq != effect.event.seq)
+                ||  (event.time != effect.event.time)) {
+                    throw new Error('Wrong event!'
+                        + ' expect:'+event.seq+'@'+event.time
+                        + ' actual:'+effect.event.seq+'@'+effect.event.time);
+                }
+                snapshotContext(effect.event.context);  // update actor state/behavior
+            }
+            effect.created.forEach(snapshotContext);
+            effect.sent.forEach(snapshotEvent);
             console.log('snapshot:', snapshot);
         } catch (ex) {
             exception = ex;
         }
         setImmediate(function () {
             callback(exception);
+        });
+    };
+    var snapshotContext = function snapshotContext(context) {
+        var token = checkpoint.domain.localToRemote(context.self);
+        snapshot.actors[token] = {
+            state: checkpoint.domain.encode(context.state),
+            behavior: context.behavior
+        };
+    };
+    var snapshotEvent = function snapshotEvent(event) {
+        snapshot.events.push({
+            time: event.time,
+            seq: event.seq,
+            message: checkpoint.domain.encode(event.message),
+            actor: checkpoint.domain.localToRemote(event.context.self)
         });
     };
     var checkpoint = tart.checkpoint({ logEffect:logSnapshot });
