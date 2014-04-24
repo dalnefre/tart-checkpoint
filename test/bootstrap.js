@@ -245,7 +245,6 @@ test['ping/pong generates accurate snapshots'] = function (test) {
     var logSnapshot = function logSnapshot(effect, callback) {
         var exception = false;
         console.log('logSnapshot:', checkpoint.domain.encode(effect));
-        // FIXME: WHAT SHOULD WE DO WITH EXCEPTION EVENTS?
         try {
             if (effect.event) {  // remove processed event
                 var event = snapshot.events.shift();
@@ -255,10 +254,15 @@ test['ping/pong generates accurate snapshots'] = function (test) {
                         + ' expect:'+event.seq+'@'+event.time
                         + ' actual:'+effect.event.seq+'@'+effect.event.time);
                 }
-                snapshotContext(effect.event.context);  // update actor state/behavior
+                if (!effect.exception) {
+                    snapshotContext(effect.event.context);  // update actor state/behavior
+                }
+                // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
             }
-            effect.created.forEach(snapshotContext);
-            effect.sent.forEach(snapshotEvent);
+            if (!effect.exception) {
+                effect.created.forEach(snapshotContext);
+                effect.sent.forEach(snapshotEvent);
+            }
             console.log('snapshot:', snapshot);
         } catch (ex) {
             exception = ex;
@@ -279,7 +283,7 @@ test['ping/pong generates accurate snapshots'] = function (test) {
             time: event.time,
             seq: event.seq,
             message: checkpoint.domain.encode(event.message),
-            actor: checkpoint.domain.localToRemote(event.context.self)
+            token: checkpoint.domain.localToRemote(event.context.self)
         });
     };
     var checkpoint = tart.checkpoint({ logEffect:logSnapshot });

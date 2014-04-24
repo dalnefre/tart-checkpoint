@@ -167,8 +167,8 @@ module.exports.checkpoint = function checkpoint(options) {
     options.processEvent = options.processEvent || function processEvent(event) {
         console.log('processEvent event:', event);
         options.effect.event = event;
+        options.effect.behavior = event.context.behavior;
         try {
-            options.effect.behavior = event.context.behavior;
             event.context.behavior = options.compileBehavior(options.effect.behavior);
             event.context.behavior(event.message);  // execute actor behavior
             options.effect.became = event.context.behavior.toString();
