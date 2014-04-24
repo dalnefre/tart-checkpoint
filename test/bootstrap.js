@@ -241,52 +241,7 @@ var pingPongBeh = (function pingPongBeh(message) {
 
 test['ping/pong generates accurate snapshots'] = function (test) {
     test.expect(1);
-    var snapshot = { actors:[], events:[] };
-    var logSnapshot = function logSnapshot(effect, callback) {
-        var exception = false;
-        console.log('logSnapshot:', checkpoint.domain.encode(effect));
-        try {
-            if (effect.event) {  // remove processed event
-                var event = snapshot.events.shift();
-                if ((event.seq != effect.event.seq)
-                ||  (event.time != effect.event.time)) {
-                    throw new Error('Wrong event!'
-                        + ' expect:'+event.seq+'@'+event.time
-                        + ' actual:'+effect.event.seq+'@'+effect.event.time);
-                }
-                if (!effect.exception) {
-                    snapshotContext(effect.event.context);  // update actor state/behavior
-                }
-                // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
-            }
-            if (!effect.exception) {
-                effect.created.forEach(snapshotContext);
-                effect.sent.forEach(snapshotEvent);
-            }
-            console.log('snapshot:', snapshot);
-        } catch (ex) {
-            exception = ex;
-        }
-        setImmediate(function () {
-            callback(exception);
-        });
-    };
-    var snapshotContext = function snapshotContext(context) {
-        var token = checkpoint.domain.localToRemote(context.self);
-        snapshot.actors[token] = {
-            state: checkpoint.domain.encode(context.state),
-            behavior: context.behavior
-        };
-    };
-    var snapshotEvent = function snapshotEvent(event) {
-        snapshot.events.push({
-            time: event.time,
-            seq: event.seq,
-            message: checkpoint.domain.encode(event.message),
-            token: checkpoint.domain.localToRemote(event.context.self)
-        });
-    };
-    var checkpoint = tart.checkpoint({ logEffect:logSnapshot });
+    var checkpoint = tart.checkpoint();
 
     var sponsor = require('tart').minimal();
     var doneTest = sponsor(function (message) {
