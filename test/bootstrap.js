@@ -34,7 +34,7 @@ var tart = require('../index.js');
 var fs = require('fs');
 
 var test = module.exports = {};
-//test = {};  // FIXME: DISABLE ALL TEST IN THIS SUITE
+//test = {};  // FIXME: DISABLE ALL TESTS IN THIS SUITE
 
 var accountBeh = (function accountBeh(message) {
     console.log('account:', message);
@@ -55,53 +55,6 @@ var accountBeh = (function accountBeh(message) {
         }
     }
 }).toString();
-
-/*
-checkpointReceptionist: { address: 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg',
-  content: '{"type":":balance","ok":"remote#KQM1MAm6Rn1RKpkrKtwzLkHJi8NJcqKQn3DXnkMMVk1Aqb4HMoqH3GJN","fail":"remote#HmU51BjjoPaoUpMtFNWgyQOj40UD7axlG2PAxnKSmiQ7NEesGmNtKLOV"}' }
-applyEffect: { created: 
-   [ { self: [Function: send],
-       state: [Object],
-       behavior: 'function accountBeh(message) {\n    console.log(\'account:\', message);\n    if (message.type === \'balance\') {\n        // { type:\'balance\', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === \'adjust\') {\n        // { type:\'adjust\', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: \'Insufficient Funds\',\n                account: this.self\n            });\n        }\n    }\n}',
-       sponsor: [Function: create] } ],
-  sent: [ { message: [Object], context: [Object] } ],
-  output: [] }
-saveCheckpoint: { created: [],
-  sent: [],
-  output: 
-   [ { address: 'remote#KQM1MAm6Rn1RKpkrKtwzLkHJi8NJcqKQn3DXnkMMVk1Aqb4HMoqH3GJN',
-       content: '42' } ],
-  event: 
-   { message: 
-      { type: 'balance',
-        ok: [Function: proxyBeh],
-        fail: [Function: proxyBeh] },
-     context: 
-      { self: [Function: send],
-        state: [Object],
-        behavior: 'function accountBeh(message) {\n    console.log(\'account:\', message);\n    if (message.type === \'balance\') {\n        // { type:\'balance\', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === \'adjust\') {\n        // { type:\'adjust\', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: \'Insufficient Funds\',\n                account: this.self\n            });\n        }\n    }\n}',
-        sponsor: [Function: create] } },
-  behavior: 'function accountBeh(message) {\n    console.log(\'account:\', message);\n    if (message.type === \'balance\') {\n        // { type:\'balance\', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === \'adjust\') {\n        // { type:\'adjust\', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: \'Insufficient Funds\',\n                account: this.self\n            });\n        }\n    }\n}',
-  became: 'function accountBeh(message) {\n    console.log(\'account:\', message);\n    if (message.type === \'balance\') {\n        // { type:\'balance\', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === \'adjust\') {\n        // { type:\'adjust\', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: \'Insufficient Funds\',\n                account: this.self\n            });\n        }\n    }\n}' }
-logEffect: {
-  "created":[],
-  "sent":[],
-  "output":[
-    { "address":":remote#KQM1MAm6Rn1RKpkrKtwzLkHJi8NJcqKQn3DXnkMMVk1Aqb4HMoqH3GJN",
-      "content":":42" } ],
-  "event":{
-    "message":{
-      "type":":balance",
-      "ok":"remote#KQM1MAm6Rn1RKpkrKtwzLkHJi8NJcqKQn3DXnkMMVk1Aqb4HMoqH3GJN",
-      "fail":"remote#HmU51BjjoPaoUpMtFNWgyQOj40UD7axlG2PAxnKSmiQ7NEesGmNtKLOV" },
-    "context":{
-      "self":"checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg",
-      "state":{ "balance":42 },
-      "behavior":":function accountBeh(message) {\n    console.log('account:', message);\n    if (message.type === 'balance') {\n        // { type:'balance', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === 'adjust') {\n        // { type:'adjust', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: 'Insufficient Funds',\n                account: this.self\n            });\n        }\n    }\n}",
-      "sponsor":"checkpoint#TdqM3dpGKA+xa1cHcVnoWE2zCgN4MMgfkKqm0Wa4Jdrj4Qgoyu+2FroN" } },
-  "behavior":":function accountBeh(message) {\n    console.log('account:', message);\n    if (message.type === 'balance') {\n        // { type:'balance', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === 'adjust') {\n        // { type:'adjust', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: 'Insufficient Funds',\n                account: this.self\n            });\n        }\n    }\n}",
-  "became":":function accountBeh(message) {\n    console.log('account:', message);\n    if (message.type === 'balance') {\n        // { type:'balance', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === 'adjust') {\n        // { type:'adjust', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: 'Insufficient Funds',\n                account: this.self\n            });\n        }\n    }\n}" }
-*/
 
 test['can check balance of restored acccount'] = function (test) {
     test.expect(1);
@@ -256,4 +209,42 @@ test['ping/pong generates accurate snapshots'] = function (test) {
     
     var seed = checkpoint.sponsor(pingPongBeh);
     seed({ n:3, done:doneProxy });
+};
+
+test['ping/pong restored from snapshot'] = function (test) {
+    test.expect(1);
+    var snapshot = {
+        actors:[],
+        events:[]
+    };
+    snapshot.actors['checkpoint#jDGG+vtP8WcnpvDg7ruuTUjf3gs72Erg3q8NSQIybDi37sjScQzPTkl8'] = {
+        state: '{"done":"remote#AHVAavTBXzJG81C00c7NLrNpVUR8+KWswbkkSrKoPkkrPYT00ZLzZaO9","ping":"checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15"}',
+        behavior: 'function pongBeh(count) {\n        console.log(\'pongBeh:\', count);\n        if (count > 0) {\n            this.state.ping(--count);\n        } else {\n            this.state.done(\'pong\');\n        }\n    }'
+    };
+    snapshot.actors['checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15'] = {
+        state: '{"pong":"checkpoint#jDGG+vtP8WcnpvDg7ruuTUjf3gs72Erg3q8NSQIybDi37sjScQzPTkl8","done":"remote#AHVAavTBXzJG81C00c7NLrNpVUR8+KWswbkkSrKoPkkrPYT00ZLzZaO9"}',
+        behavior: 'function pingBeh(count) {\n        console.log(\'pingBeh:\', count);\n        if (count > 0) {\n            this.state.pong(--count);\n        } else {\n            this.state.done(\'ping\');\n        }\n    }'
+    };
+    snapshot.events = [
+        {
+            time: 1398359346185, 
+            seq: 2,
+            message: '3',
+            token: 'checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15'
+        }
+    ];
+    var checkpoint = tart.checkpoint({ snapshot:snapshot });
+
+    var sponsor = require('tart').minimal();
+    var doneTest = sponsor(function (message) {
+        console.log('doneTest:', message);
+        test.equal(message, 'pong');
+        test.done();
+    });
+    var remote = checkpoint.router.domain('remote');
+
+    var doneToken = 'remote#AHVAavTBXzJG81C00c7NLrNpVUR8+KWswbkkSrKoPkkrPYT00ZLzZaO9';
+    remote.bindLocal(doneToken, doneTest);
+    
+    // NOTE: test should proceed based on restored pending event(s)
 };

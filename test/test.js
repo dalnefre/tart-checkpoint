@@ -33,7 +33,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 var tart = require('../index.js');
 
 var test = module.exports = {};
-//test = {};  // FIXME: DISABLE ALL TEST IN THIS SUITE
+//test = {};  // FIXME: DISABLE ALL TESTS IN THIS SUITE
 
 test['readme example processes two messages'] = function (test) {
     test.expect(3);

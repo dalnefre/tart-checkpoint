@@ -145,12 +145,15 @@ module.exports.checkpoint = function checkpoint(options) {
         effect.output.forEach(transport);  // output to original transport
     };
 
-    var snapshot = { actors:[], events:[] };
+    options.snapshot =  options.snapshot || {
+        actors:[],
+        events:[]
+    };
     options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
         var exception = false;
         try {
             if (effect.event) {  // remove processed event
-                var event = snapshot.events.shift();
+                var event = options.snapshot.events.shift();
                 if ((event.seq != effect.event.seq)
                 ||  (event.time != effect.event.time)) {
                     throw new Error('Wrong event!'
@@ -160,7 +163,7 @@ module.exports.checkpoint = function checkpoint(options) {
                 // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
             }
             snapshotEffect(effect);
-            console.log('snapshot:', snapshot);
+            console.log('snapshot:', options.snapshot);
         } catch (ex) {
             exception = ex;
         }
@@ -178,17 +181,45 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     var snapshotContext = function snapshotContext(context) {
         var token = domain.localToRemote(context.self);
-        snapshot.actors[token] = {
+        options.snapshot.actors[token] = {
             state: domain.encode(context.state),
             behavior: context.behavior
         };
     };
     var snapshotEvent = function snapshotEvent(event) {
-        snapshot.events.push({
+        options.snapshot.events.push({
             time: event.time,
             seq: event.seq,
             message: domain.encode(event.message),
             token: domain.localToRemote(event.context.self)
+        });
+    };
+    var restoreSnapshot = function restoreSnapshot() {
+        var ignoreBeh = (function () {}).toString();
+        var contextMap = {};
+        console.log('restoreSnapshot:', options.snapshot);
+        var tokens = Object.keys(options.snapshot.actors);
+        tokens.forEach(function (token) {  // create dummy actors
+            var actor = options.checkpoint.sponsor(ignoreBeh);
+            domain.bindLocal(token, actor);
+            contextMap[token] = options.effect.created.pop();
+        });
+        tokens.forEach(function (token) {  // overwrite dummy state & behavior
+            var context = contextMap[token];
+            var memento = options.snapshot.actors[token];
+            context.behavior = memento.behavior;
+            context.state = domain.decode(memento.state);
+            console.log(token+':', context);  // dump restored context to logfile
+        });
+        options.snapshot.events.forEach(function (memento) {
+            var event = {
+                time: memento.time,
+                seq: memento.seq,
+                message: domain.decode(memento.message),
+                context: contextMap[memento.token]
+            };
+            console.log('event:', event);
+            eventBuffer(event);  // re-queue restored event
         });
     };
 
@@ -267,6 +298,7 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     options.effect = options.newEffect();  // initialize empty effect
+    restoreSnapshot();
     setImmediate(function () {  // prime the pump...
         options.saveCheckpoint(options.errorHandler);
     });
