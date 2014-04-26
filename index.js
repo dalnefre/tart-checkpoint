@@ -151,30 +151,12 @@ module.exports.checkpoint = function checkpoint(options) {
             context.behavior = memento.behavior;  // update actor behavior
             context.state = domain.decode(memento.state);  // update actor state
         }
-        Object.keys(effect.created).forEach(function (token) {  // register actors
-            var context = effect.created[token];
-            contextMap[context.token] = context;
-            console.log(context.token+':', context);
+        Object.keys(effect.created).forEach(function (token) {
+            var memento = effect.created[token];
+            // FIXME: RE-CREATE ACTOR FROM MEMENTO?
         });
         effect.sent.forEach(eventBuffer);  // enqueue sent events
         effect.output.forEach(transport);  // output to original transport
-    };
-
-    var actorMemento = function actorMemento(context) {
-        return {
-            state: domain.encode(context.state),
-            behavior: context.behavior.toString(),
-            token: context.token
-        };
-    };
-    var eventMemento = function eventMemento(event) {
-        return {
-            domain: domain.name,
-            time: event.time,
-            seq: event.seq,
-            message: domain.encode(event.message),
-            token: event.context.token
-        };
     };
 
     options.snapshot =  options.snapshot || {
@@ -213,8 +195,7 @@ module.exports.checkpoint = function checkpoint(options) {
             snapshot.created[context.token] = actorMemento(context);
         }
         Object.keys(effect.created).forEach(function (token) {
-            var context = effect.created[token];
-            snapshot.created[context.token] = actorMemento(context);
+            snapshot.created[token] = effect.created[token];
         });
         effect.sent.forEach(function (event) {
             snapshot.sent.push(eventMemento(event));
@@ -226,7 +207,6 @@ module.exports.checkpoint = function checkpoint(options) {
         var tokens = Object.keys(snapshot.created);
         tokens.forEach(function (token) {  // create dummy actors
             var actor = options.checkpoint.sponsor(ignoreBeh, {}, token);
-            contextMap[token] = options.effect.created[token];
             delete options.effect.created[token];
         });
         tokens.forEach(function (token) {  // overwrite dummy state & behavior
@@ -275,16 +255,15 @@ module.exports.checkpoint = function checkpoint(options) {
     
     options.addContext = options.addContext || function addContext(context) {
         console.log('addContext:', context);
-        options.effect.created[context.token] = context;
+        contextMap[context.token] = context;
+        options.effect.created[context.token] = actorMemento(context);
         return context;
     };
-
     options.addEvent = options.addEvent || function addEvent(event) {
         console.log('addEvent:', event);
         options.effect.sent.push(event);
         return event;
     };
-
     options.addOutput = options.addOutput || function addOutput(message) {
         console.log('addOutput:', message);
         options.effect.output.push(message);
@@ -295,6 +274,23 @@ module.exports.checkpoint = function checkpoint(options) {
         if (error) {
             console.log('FAIL!', error);
         }
+    };
+
+    var actorMemento = function actorMemento(context) {
+        return {
+            state: domain.encode(context.state),
+            behavior: context.behavior.toString(),
+            token: context.token
+        };
+    };
+    var eventMemento = function eventMemento(event) {
+        return {
+            domain: domain.name,
+            time: event.time,
+            seq: event.seq,
+            message: domain.encode(event.message),
+            token: event.context.token
+        };
     };
 
     var eventSeq = 0;
