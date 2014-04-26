@@ -214,21 +214,22 @@ test['ping/pong generates accurate snapshots'] = function (test) {
 test['ping/pong restored from snapshot'] = function (test) {
     test.expect(1);
     var snapshot = {
-        actors:[],
-        events:[]
+        created: {},
+        sent: []
     };
-    snapshot.actors['checkpoint#jDGG+vtP8WcnpvDg7ruuTUjf3gs72Erg3q8NSQIybDi37sjScQzPTkl8'] = {
+    snapshot.created['checkpoint#jDGG+vtP8WcnpvDg7ruuTUjf3gs72Erg3q8NSQIybDi37sjScQzPTkl8'] = {
         state: '{"done":"remote#AHVAavTBXzJG81C00c7NLrNpVUR8+KWswbkkSrKoPkkrPYT00ZLzZaO9","ping":"checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15"}',
         behavior: 'function pongBeh(count) {\n        console.log(\'pongBeh:\', count);\n        if (count > 0) {\n            this.state.ping(--count);\n        } else {\n            this.state.done(\'pong\');\n        }\n    }',
         token: 'checkpoint#jDGG+vtP8WcnpvDg7ruuTUjf3gs72Erg3q8NSQIybDi37sjScQzPTkl8'
     };
-    snapshot.actors['checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15'] = {
+    snapshot.created['checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15'] = {
         state: '{"pong":"checkpoint#jDGG+vtP8WcnpvDg7ruuTUjf3gs72Erg3q8NSQIybDi37sjScQzPTkl8","done":"remote#AHVAavTBXzJG81C00c7NLrNpVUR8+KWswbkkSrKoPkkrPYT00ZLzZaO9"}',
         behavior: 'function pingBeh(count) {\n        console.log(\'pingBeh:\', count);\n        if (count > 0) {\n            this.state.pong(--count);\n        } else {\n            this.state.done(\'ping\');\n        }\n    }',
         token: 'checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15'
     };
-    snapshot.events = [
+    snapshot.sent = [
         {
+            domain: 'checkpoint',
             time: 1398359346185, 
             seq: 2,
             message: '3',

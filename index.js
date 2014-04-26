@@ -154,6 +154,7 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     var eventMemento = function eventMemento(event) {
         return {
+            domain: domain.name,
             time: event.time,
             seq: event.seq,
             message: domain.encode(event.message),
@@ -162,19 +163,20 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     options.snapshot =  options.snapshot || {
-        actors: {},
-        events: []
+        created: {},
+        sent: []
     };
     options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
         var exception = false;
         try {
             if (effect.event) {  // remove processed event
-                var event = options.snapshot.events.shift();
-                if ((event.seq != effect.event.seq)
-                ||  (event.time != effect.event.time)) {
+                var event = options.snapshot.sent.shift();
+                if ((event.domain != effect.event.domain)
+                ||  (event.time != effect.event.time)
+                ||  (event.seq != effect.event.seq)) {
                     throw new Error('Wrong event!'
-                        + ' expect:'+event.seq+'@'+event.time
-                        + ' actual:'+effect.event.seq+'@'+effect.event.time);
+                        + ' expect:'+event.domain+':'+event.seq+'@'+event.time
+                        + ' actual:'+effect.event.domain+':'+effect.event.seq+'@'+effect.event.time);
                 }
                 // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
             }
@@ -197,17 +199,17 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     var snapshotContext = function snapshotContext(context) {
         var memento = actorMemento(context);
-        options.snapshot.actors[memento.token] = memento;
+        options.snapshot.created[memento.token] = memento;
     };
     var snapshotEvent = function snapshotEvent(event) {
         var memento = eventMemento(event);
-        options.snapshot.events.push(memento);
+        options.snapshot.sent.push(memento);
     };
-    var restoreSnapshot = function restoreSnapshot() {
+    var restoreSnapshot = function restoreSnapshot(snapshot) {
         var ignoreBeh = (function () {}).toString();
         var contextMap = {};
-        console.log('restoreSnapshot:', options.snapshot);
-        var tokens = Object.keys(options.snapshot.actors);
+        console.log('restoreSnapshot:', snapshot);
+        var tokens = Object.keys(snapshot.created);
         tokens.forEach(function (token) {  // create dummy actors
             var actor = options.checkpoint.sponsor(ignoreBeh);
             domain.bindLocal(token, actor);
@@ -215,13 +217,14 @@ module.exports.checkpoint = function checkpoint(options) {
         });
         tokens.forEach(function (token) {  // overwrite dummy state & behavior
             var context = contextMap[token];
-            var memento = options.snapshot.actors[token];
+            var memento = snapshot.created[token];
             context.behavior = memento.behavior;
             context.state = domain.decode(memento.state);
             console.log(token+':', context);  // dump restored context to logfile
         });
-        options.snapshot.events.forEach(function (memento) {
+        snapshot.sent.forEach(function (memento) {
             var event = {
+                domain: memento.domain,
                 time: memento.time,
                 seq: memento.seq,
                 message: domain.decode(memento.message),
@@ -264,6 +267,7 @@ module.exports.checkpoint = function checkpoint(options) {
 
     var eventSeq = 0;
     options.addEvent = options.addEvent || function addEvent(event) {
+        event.domain = domain.name;
         event.time = Date.now();
         event.seq = ++eventSeq;
         console.log('addEvent:', event);
@@ -307,7 +311,7 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     options.effect = options.newEffect();  // initialize empty effect
-    restoreSnapshot();
+    restoreSnapshot(options.snapshot);
     setImmediate(function () {  // prime the pump...
         options.saveCheckpoint(options.errorHandler);
     });
