@@ -99,15 +99,17 @@ module.exports.checkpoint = function checkpoint(options) {
     options.processEvent = options.processEvent || function processEvent(event) {
         console.log('processEvent event:', event);
         options.effect.cause = event;
-        options.effect.behavior = event.context.behavior;
+        var context = event.context;
+        var memento = actorMemento(context);  // capture initial state & behavior
+        var behavior = context.behavior;
         try {
-            event.context.behavior = options.compileBehavior(options.effect.behavior);
-            event.context.behavior(event.message);  // execute actor behavior
-            options.effect.became = event.context.behavior.toString();
-            event.context.behavior = options.effect.became;
+            context.behavior = options.compileBehavior(behavior);
+            context.behavior(event.message);  // execute actor behavior
+            memento = actorMemento(context);  // capture final state & behavior
         } catch (exception) {
             options.effect.exception = exception;
         }
+        options.effect.update = memento;
         console.log('processEvent effect:', options.effect);
     }
     options.compileBehavior = options.compileBehavior || function compileBehavior(source) {
@@ -141,6 +143,12 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.applyEffect = options.applyEffect || function applyEffect(effect) {
         console.log('applyEffect:', effect);
+        if (effect.cause) {
+            var context = effect.cause.context;  // FIXME: LOOK UP IN CONTEXT MAP?
+            var memento = effect.update;
+            context.behavior = memento.behavior;  // update actor behavior
+            context.state = domain.decode(memento.state);  // update actor state
+        }
         effect.sent.forEach(eventBuffer);  // enqueue sent events
         effect.output.forEach(transport);  // output to original transport
     };
@@ -148,7 +156,7 @@ module.exports.checkpoint = function checkpoint(options) {
     var actorMemento = function actorMemento(context) {
         return {
             state: domain.encode(context.state),
-            behavior: context.behavior,
+            behavior: context.behavior.toString(),
             token: context.token
         };
     };
