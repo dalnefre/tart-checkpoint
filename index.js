@@ -37,6 +37,8 @@ module.exports.checkpoint = function checkpoint(options) {
     options = options || {};
     
     options.events = [];  // queue of pending events
+
+    var contextMap = {};  // map from tokens to actor contexts
     
     var name = options.name || 'checkpoint';
     var sponsor = options.sponsor || tart.minimal();
@@ -149,6 +151,11 @@ module.exports.checkpoint = function checkpoint(options) {
             context.behavior = memento.behavior;  // update actor behavior
             context.state = domain.decode(memento.state);  // update actor state
         }
+        Object.keys(effect.created).forEach(function (token) {  // register actors
+            var context = effect.created[token];
+            contextMap[context.token] = context;
+            console.log(context.token+':', context);
+        });
         effect.sent.forEach(eventBuffer);  // enqueue sent events
         effect.output.forEach(transport);  // output to original transport
     };
@@ -215,7 +222,6 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     var restoreSnapshot = function restoreSnapshot(snapshot) {
         var ignoreBeh = (function () {}).toString();
-        var contextMap = {};
         console.log('restoreSnapshot:', snapshot);
         var tokens = Object.keys(snapshot.created);
         tokens.forEach(function (token) {  // create dummy actors
