@@ -149,7 +149,7 @@ module.exports.checkpoint = function checkpoint(options) {
         return {
             state: domain.encode(context.state),
             behavior: context.behavior,
-            token: domain.localToRemote(context.self)
+            token: context.token
         };
     };
     var eventMemento = function eventMemento(event) {
@@ -158,7 +158,7 @@ module.exports.checkpoint = function checkpoint(options) {
             time: event.time,
             seq: event.seq,
             message: domain.encode(event.message),
-            token: domain.localToRemote(event.context.self)
+            token: event.context.token
         };
     };
 
@@ -167,10 +167,11 @@ module.exports.checkpoint = function checkpoint(options) {
         sent: []
     };
     options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
+        var snapshot = options.snapshot;
         var exception = false;
         try {
             if (effect.event) {  // remove processed event
-                var event = options.snapshot.sent.shift();
+                var event = snapshot.sent.shift();
                 if ((event.domain != effect.event.domain)
                 ||  (event.time != effect.event.time)
                 ||  (event.seq != effect.event.seq)) {
@@ -181,7 +182,7 @@ module.exports.checkpoint = function checkpoint(options) {
                 // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
             }
             snapshotEffect(effect);
-            console.log('snapshot:', options.snapshot);
+            console.log('snapshot:', snapshot);
         } catch (ex) {
             exception = ex;
         }
@@ -190,20 +191,19 @@ module.exports.checkpoint = function checkpoint(options) {
         });
     };
     var snapshotEffect = function snapshotEffect(effect) {
+        var snapshot = options.snapshot;
         console.log('snapshotEffect:', effect);
-        if (effect.event) {
-            snapshotContext(effect.event.context);  // update actor state/behavior
+        if (effect.event) {  // update actor state/behavior
+            var context = effect.event.context;
+            snapshot.created[context.token] = actorMemento(context);
         }
-        effect.created.forEach(snapshotContext);
-        effect.sent.forEach(snapshotEvent);
-    };
-    var snapshotContext = function snapshotContext(context) {
-        var memento = actorMemento(context);
-        options.snapshot.created[memento.token] = memento;
-    };
-    var snapshotEvent = function snapshotEvent(event) {
-        var memento = eventMemento(event);
-        options.snapshot.sent.push(memento);
+        Object.keys(effect.created).forEach(function (token) {
+            var context = effect.created[token];
+            snapshot.created[context.token] = actorMemento(context);
+        });
+        effect.sent.forEach(function (event) {
+            snapshot.sent.push(eventMemento(event));
+        });
     };
     var restoreSnapshot = function restoreSnapshot(snapshot) {
         var ignoreBeh = (function () {}).toString();
@@ -211,9 +211,10 @@ module.exports.checkpoint = function checkpoint(options) {
         console.log('restoreSnapshot:', snapshot);
         var tokens = Object.keys(snapshot.created);
         tokens.forEach(function (token) {  // create dummy actors
-            var actor = options.checkpoint.sponsor(ignoreBeh);
-            domain.bindLocal(token, actor);
-            contextMap[token] = options.effect.created.pop();
+            var actor = options.checkpoint.sponsor(ignoreBeh, {}, token);
+//            domain.bindLocal(token, actor);
+            contextMap[token] = options.effect.created[token];
+            delete options.effect.created[token];
         });
         tokens.forEach(function (token) {  // overwrite dummy state & behavior
             var context = contextMap[token];
@@ -237,7 +238,7 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.newEffect = options.newEffect || function newEffect() {
         return {
-            created: [],
+            created: {},
             sent: [],
             output: []
         };
@@ -247,7 +248,7 @@ module.exports.checkpoint = function checkpoint(options) {
         ||  effect.exception
         ||  (effect.output.length > 0)
         ||  (effect.sent.length > 0)
-        ||  (effect.created.length > 0)) {
+        ||  (Object.keys(effect.created).length > 0)) {
             return false;
         }
         return true;
@@ -260,8 +261,10 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     
     options.addContext = options.addContext || function addContext(context) {
+        var token = domain.localToRemote(context.self);
+        context.token = token;
         console.log('addContext:', context);
-        options.effect.created.push(context);
+        options.effect.created[token] = context;
         return context;
     };
 
@@ -290,7 +293,7 @@ module.exports.checkpoint = function checkpoint(options) {
     options.checkpoint = {
         router: router,
         domain: domain,
-        sponsor: function create(behavior, state) {
+        sponsor: function create(behavior, state, token) {
             state = state || {};
             var actor = function send(message) {
                 var event = {
@@ -299,6 +302,9 @@ module.exports.checkpoint = function checkpoint(options) {
                 };
                 options.addEvent(event);
             };
+            if (token) {
+                domain.bindLocal(token, actor);
+            }
             var context = {
                 self: actor,
                 state: state,

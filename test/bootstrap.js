@@ -73,8 +73,7 @@ test['can check balance of restored acccount'] = function (test) {
     console.log('snapshot:', snapshot);
     var actors = checkpoint.domain.decode(snapshot);
     var context = actors[token];
-    var actor = checkpoint.sponsor(context.behavior, context.state);
-    checkpoint.domain.bindLocal(token, actor);
+    var actor = checkpoint.sponsor(context.behavior, context.state, token);
 
     var remote = checkpoint.router.domain('remote');
     var proxy = remote.remoteToLocal(token);
@@ -105,8 +104,7 @@ test['can check balance of reloaded acccount'] = function (test) {
     console.log('snapshot:', snapshot);
     var actors = checkpoint.domain.decode(snapshot);
     var context = actors[token];  // FIXME: ITERATE THROUGH KEYS AND CREATE ALL ACTORS
-    var actor = checkpoint.sponsor(context.behavior, context.state);
-    checkpoint.domain.bindLocal(token, actor);
+    var actor = checkpoint.sponsor(context.behavior, context.state, token);
 
     var remote = checkpoint.router.domain('remote');
     var proxy = remote.remoteToLocal(token);
