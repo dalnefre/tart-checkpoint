@@ -101,12 +101,16 @@ module.exports.checkpoint = function checkpoint(options) {
     options.processEvent = options.processEvent || function processEvent(event) {
         console.log('processEvent event:', event);
         options.effect.cause = event;
-        var context = event.context;
+        var context = contextMap[event.token];
+        console.log('processEvent context:', context);
         var memento = actorMemento(context);  // capture initial state & behavior
-        var behavior = context.behavior;
         try {
+            var message = domain.decode(event.message);
+    	    console.log('processEvent message:', message);
+            var behavior = context.behavior;
+	        console.log('processEvent behavior:', behavior);
             context.behavior = options.compileBehavior(behavior);
-            context.behavior(event.message);  // execute actor behavior
+            context.behavior(message);  // execute actor behavior
             memento = actorMemento(context);  // capture final state & behavior
         } catch (exception) {
             options.effect.exception = exception;
@@ -128,8 +132,6 @@ module.exports.checkpoint = function checkpoint(options) {
         // Write effect to log.
         options.logEffect(effect, function (error) {
             if (error) { return callback(error); }
-            // If effect is an error, checkpoint is done.
-            if (options.effectIsError(effect)) { return callback(false); }
             // Add messages sent, if any, to event queue.
             options.applyEffect(effect);
             // Checkpoint is done.
@@ -145,18 +147,20 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.applyEffect = options.applyEffect || function applyEffect(effect) {
         console.log('applyEffect:', effect);
-        if (effect.cause) {
-            var context = effect.cause.context;  // FIXME: LOOK UP IN CONTEXT MAP?
+        if (effect.update) {
             var memento = effect.update;
+            var context = contextMap[memento.token];
             context.behavior = memento.behavior;  // update actor behavior
             context.state = domain.decode(memento.state);  // update actor state
         }
-        Object.keys(effect.created).forEach(function (token) {
-            var memento = effect.created[token];
-            // FIXME: RE-CREATE ACTOR FROM MEMENTO?
-        });
-        effect.sent.forEach(eventBuffer);  // enqueue sent events
-        effect.output.forEach(transport);  // output to original transport
+        if (!effect.exception) {
+            Object.keys(effect.created).forEach(function (token) {
+                var memento = effect.created[token];
+                // FIXME: RE-CREATE ACTOR FROM MEMENTO?
+            });
+            effect.sent.forEach(eventBuffer);  // enqueue sent events
+            effect.output.forEach(transport);  // output to original transport
+        }
     };
 
     options.snapshot =  options.snapshot || {
@@ -168,12 +172,12 @@ module.exports.checkpoint = function checkpoint(options) {
         var exception = false;
         try {
             if (effect.cause) {  // remove processed event
-                var event = snapshot.sent.shift();
-                if ((event.domain != effect.cause.domain)
-                ||  (event.time != effect.cause.time)
-                ||  (event.seq != effect.cause.seq)) {
+                var memento = snapshot.sent.shift();
+                if ((memento.domain != effect.cause.domain)
+                ||  (memento.time != effect.cause.time)
+                ||  (memento.seq != effect.cause.seq)) {
                     throw new Error('Wrong event!'
-                        + ' expect:'+event.domain+':'+event.seq+'@'+event.time
+                        + ' expect:'+memento.domain+':'+memento.seq+'@'+memento.time
                         + ' actual:'+effect.cause.domain+':'+effect.cause.seq+'@'+effect.cause.time);
                 }
                 // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
@@ -190,15 +194,14 @@ module.exports.checkpoint = function checkpoint(options) {
     var snapshotEffect = function snapshotEffect(effect) {
         var snapshot = options.snapshot;
         console.log('snapshotEffect:', effect);
-        if (effect.cause) {  // update actor state/behavior
-            var context = effect.cause.context;
-            snapshot.created[context.token] = actorMemento(context);
+        if (effect.update) {  // update actor state/behavior
+            snapshot.created[effect.update.token] = effect.update;
         }
         Object.keys(effect.created).forEach(function (token) {
             snapshot.created[token] = effect.created[token];
         });
-        effect.sent.forEach(function (event) {
-            snapshot.sent.push(eventMemento(event));
+        effect.sent.forEach(function (memento) {
+            snapshot.sent.push(memento);
         });
     };
     var restoreSnapshot = function restoreSnapshot(snapshot) {
@@ -216,17 +219,7 @@ module.exports.checkpoint = function checkpoint(options) {
             context.state = domain.decode(memento.state);
             console.log(token+':', context);  // dump restored context to logfile
         });
-        snapshot.sent.forEach(function (memento) {
-            var event = {
-                domain: memento.domain,
-                time: memento.time,
-                seq: memento.seq,
-                message: domain.decode(memento.message),
-                context: contextMap[memento.token]
-            };
-            console.log('event:', event);
-            eventBuffer(event);  // re-queue restored event
-        });
+        snapshot.sent.forEach(eventBuffer);  // re-queue restored events
     };
 
     options.newEffect = options.newEffect || function newEffect() {
@@ -246,12 +239,6 @@ module.exports.checkpoint = function checkpoint(options) {
         }
         return true;
     };
-    options.effectIsError = options.effectIsError || function effectIsError(effect) {
-        if (effect.exception) {
-            return true;
-        }
-        return false;
-    };
     
     options.addContext = options.addContext || function addContext(context) {
         console.log('addContext:', context);
@@ -261,7 +248,7 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     options.addEvent = options.addEvent || function addEvent(event) {
         console.log('addEvent:', event);
-        options.effect.sent.push(event);
+        options.effect.sent.push(eventMemento(event));
         return event;
     };
     options.addOutput = options.addOutput || function addOutput(message) {
