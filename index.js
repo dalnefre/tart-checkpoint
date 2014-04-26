@@ -212,7 +212,6 @@ module.exports.checkpoint = function checkpoint(options) {
         var tokens = Object.keys(snapshot.created);
         tokens.forEach(function (token) {  // create dummy actors
             var actor = options.checkpoint.sponsor(ignoreBeh, {}, token);
-//            domain.bindLocal(token, actor);
             contextMap[token] = options.effect.created[token];
             delete options.effect.created[token];
         });
@@ -261,18 +260,12 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     
     options.addContext = options.addContext || function addContext(context) {
-        var token = domain.localToRemote(context.self);
-        context.token = token;
         console.log('addContext:', context);
         options.effect.created[token] = context;
         return context;
     };
 
-    var eventSeq = 0;
     options.addEvent = options.addEvent || function addEvent(event) {
-        event.domain = domain.name;
-        event.time = Date.now();
-        event.seq = ++eventSeq;
         console.log('addEvent:', event);
         options.effect.sent.push(event);
         return event;
@@ -290,6 +283,7 @@ module.exports.checkpoint = function checkpoint(options) {
         }
     };
 
+    var eventSeq = 0;
     options.checkpoint = {
         router: router,
         domain: domain,
@@ -297,6 +291,9 @@ module.exports.checkpoint = function checkpoint(options) {
             state = state || {};
             var actor = function send(message) {
                 var event = {
+                    domain: domain.name,
+                    time: Date.now(),
+                    seq: ++eventSeq,
                     message: message,
                     context: context
                 };
@@ -304,9 +301,12 @@ module.exports.checkpoint = function checkpoint(options) {
             };
             if (token) {
                 domain.bindLocal(token, actor);
+            } else {
+                token = domain.localToRemote(actor);
             }
             var context = {
                 self: actor,
+                token: token,
                 state: state,
                 behavior: behavior.toString(),
                 sponsor: create
