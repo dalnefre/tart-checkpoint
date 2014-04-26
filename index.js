@@ -145,9 +145,25 @@ module.exports.checkpoint = function checkpoint(options) {
         effect.output.forEach(transport);  // output to original transport
     };
 
+    var actorMemento = function actorMemento(context) {
+        return {
+            state: domain.encode(context.state),
+            behavior: context.behavior,
+            token: domain.localToRemote(context.self)
+        };
+    };
+    var eventMemento = function eventMemento(event) {
+        return {
+            time: event.time,
+            seq: event.seq,
+            message: domain.encode(event.message),
+            token: domain.localToRemote(event.context.self)
+        };
+    };
+
     options.snapshot =  options.snapshot || {
-        actors:[],
-        events:[]
+        actors: {},
+        events: []
     };
     options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
         var exception = false;
@@ -180,19 +196,12 @@ module.exports.checkpoint = function checkpoint(options) {
         effect.sent.forEach(snapshotEvent);
     };
     var snapshotContext = function snapshotContext(context) {
-        var token = domain.localToRemote(context.self);
-        options.snapshot.actors[token] = {
-            state: domain.encode(context.state),
-            behavior: context.behavior
-        };
+        var memento = actorMemento(context);
+        options.snapshot.actors[memento.token] = memento;
     };
     var snapshotEvent = function snapshotEvent(event) {
-        options.snapshot.events.push({
-            time: event.time,
-            seq: event.seq,
-            message: domain.encode(event.message),
-            token: domain.localToRemote(event.context.self)
-        });
+        var memento = eventMemento(event);
+        options.snapshot.events.push(memento);
     };
     var restoreSnapshot = function restoreSnapshot() {
         var ignoreBeh = (function () {}).toString();
