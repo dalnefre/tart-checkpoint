@@ -211,7 +211,6 @@ module.exports.checkpoint = function checkpoint(options) {
         var tokens = Object.keys(snapshot.created);
         tokens.forEach(function (token) {  // create dummy actors
             var actor = options.checkpoint.sponsor(ignoreBeh, {}, token);
-            delete options.effect.created[token];
         });
         tokens.forEach(function (token) {  // overwrite dummy state & behavior
             var context = options.contextMap[token];
@@ -244,17 +243,23 @@ module.exports.checkpoint = function checkpoint(options) {
     options.addContext = options.addContext || function addContext(context) {
         console.log('addContext:', context);
         options.contextMap[context.token] = context;
-        options.effect.created[context.token] = actorMemento(context);
+        if (options.effect) {
+            options.effect.created[context.token] = actorMemento(context);
+        }
         return context;
     };
     options.addEvent = options.addEvent || function addEvent(event) {
         console.log('addEvent:', event);
-        options.effect.sent.push(eventMemento(event));
+        if (options.effect) {
+            options.effect.sent.push(eventMemento(event));
+        }
         return event;
     };
     options.addOutput = options.addOutput || function addOutput(message) {
         console.log('addOutput:', message);
-        options.effect.output.push(message);
+        if (options.effect) {
+            options.effect.output.push(message);
+        }
         return message;
     };
 
@@ -314,8 +319,8 @@ module.exports.checkpoint = function checkpoint(options) {
         }
     };
 
-    options.effect = options.newEffect();  // initialize empty effect
     restoreSnapshot(options.snapshot);
+    options.effect = options.newEffect();  // initialize empty effect
     setImmediate(function () {  // prime the pump...
         options.saveCheckpoint(options.errorHandler);
     });
