@@ -177,20 +177,22 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
-        var snapshot = options.newEffect();
-        Object.keys(options.contextMap).forEach(function (token) {
-            var context = options.contextMap[token];
-            snapshot.created[token] = actorMemento(context);  // make actor mementos
-        });
-        snapshot.sent = options.eventQueue.slice();  // copy pending events
+        if (!effect.exception) {
+            var snapshot = options.newEffect();
+            Object.keys(options.contextMap).forEach(function (token) {
+                var context = options.contextMap[token];
+                snapshot.created[token] = actorMemento(context);  // make actor mementos
+            });
+            snapshot.sent = options.eventQueue.slice();  // copy pending events
 /**/
-        effect.sent.forEach(function (event) {
-            snapshot.sent.push(event);  // add new events
-        });
-        snapshot.output = effect.output.slice();  // copy new output
+            effect.sent.forEach(function (event) {
+                snapshot.sent.push(event);  // add new events
+            });
+            snapshot.output = effect.output.slice();  // copy new output
 /**/
-        options.snapshot = snapshot;  // publish snapshot
-        console.log('snapshot:', snapshot);
+            options.snapshot = snapshot;  // publish snapshot
+            console.log('snapshot:', snapshot);
+        }
         setImmediate(function () {
             callback(false);
         });
