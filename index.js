@@ -147,19 +147,21 @@ module.exports.checkpoint = function checkpoint(options) {
     options.applyEffect = options.applyEffect || function applyEffect(effect) {
         console.log('applyEffect:', effect);
         if (effect.update) {
-            var memento = effect.update;
-            var context = options.contextMap[memento.token];
-            context.behavior = memento.behavior;  // update actor behavior
-            context.state = domain.decode(memento.state);  // update actor state
+            options.updateActor(effect.update);
         }
         if (!effect.exception) {
             Object.keys(effect.created).forEach(function (token) {
-                var memento = effect.created[token];
-                // FIXME: RE-CREATE ACTOR FROM MEMENTO?
+                options.updateActor(effect.created[token]);
             });
             effect.sent.forEach(eventBuffer);  // enqueue sent events
             effect.output.forEach(transport);  // output to original transport
         }
+    };
+    options.updateActor = options.updateActor || function updateActor(memento) {
+        console.log('updateActor:', memento);
+        var context = options.contextMap[memento.token];
+        context.behavior = memento.behavior;  // update actor behavior
+        context.state = domain.decode(memento.state);  // update actor state
     };
 
     options.snapshot =  options.snapshot || {
