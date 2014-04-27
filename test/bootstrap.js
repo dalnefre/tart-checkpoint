@@ -213,7 +213,8 @@ test['ping/pong restored from snapshot'] = function (test) {
     test.expect(1);
     var snapshot = {
         created: {},
-        sent: []
+        sent: [],
+        output: []
     };
     snapshot.created['checkpoint#jDGG+vtP8WcnpvDg7ruuTUjf3gs72Erg3q8NSQIybDi37sjScQzPTkl8'] = {
         state: '{"done":"remote#AHVAavTBXzJG81C00c7NLrNpVUR8+KWswbkkSrKoPkkrPYT00ZLzZaO9","ping":"checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15"}',
@@ -234,7 +235,7 @@ test['ping/pong restored from snapshot'] = function (test) {
             token: 'checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15'
         }
     ];
-    var checkpoint = tart.checkpoint({ snapshot:snapshot });
+    var checkpoint = tart.checkpoint({ effect:snapshot });
 
     var sponsor = require('tart').minimal();
     var doneTest = sponsor(function (message) {

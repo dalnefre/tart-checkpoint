@@ -48,7 +48,7 @@ module.exports.checkpoint = function checkpoint(options) {
         console.log('checkpointReceptionist:', message);
         receptionist(message);  // delegate to original receptionist (cause effects)
         options.applyEffect(options.effect);  // Add messages sent, if any, to event queue.
-        snapshotEffect(options.effect);  // FIXME: FIND A BETTER WAY TO CAPTURE SNAPSHOT
+//        snapshotEffect(options.effect);  // FIXME: FIND A BETTER WAY TO CAPTURE SNAPSHOT
         options.effect = options.newEffect();  // Initialize empty effect.
     };
     var transport = domain.transport;
@@ -138,12 +138,48 @@ module.exports.checkpoint = function checkpoint(options) {
         });
     };
 
+    options.newEffect = options.newEffect || function newEffect() {
+        return {
+            created: {},
+            sent: [],
+            output: []
+        };
+    };
+    options.effectIsEmpty = options.effectIsEmpty || function effectIsEmpty(effect) {
+        if (!effect) {
+            return true;
+        }
+        if (effect.cause
+        ||  effect.exception
+        ||  (effect.output.length > 0)
+        ||  (effect.sent.length > 0)
+        ||  (Object.keys(effect.created).length > 0)) {
+            return false;
+        }
+        return true;
+    };
+    
     options.logEffect = options.logEffect || function logEffect(effect, callback) {
         var json = domain.encode(effect);
         console.log('logEffect:', json);
         options.logSnapshot(effect, callback);
     };
 
+    var ignoreBeh = (function () {}).toString();
+    options.applySnapshot = options.applySnapshot || function applySnapshot() {
+        var effect = options.effect;
+        console.log('applySnapshot:', effect);
+        if (!options.effectIsEmpty(effect)) {
+            options.effect = null;  // suppress effects while restoring snapshot
+            // Ensure actors exist for each token (allows circular reference)
+            Object.keys(effect.created).forEach(function (token) {
+                if (!options.contextMap[token]) {
+                    options.checkpoint.sponsor(ignoreBeh, {}, token);
+                }
+            });
+            options.applyEffect(effect);
+        }
+    };
     options.applyEffect = options.applyEffect || function applyEffect(effect) {
         console.log('applyEffect:', effect);
         if (effect.update) {
@@ -164,16 +200,15 @@ module.exports.checkpoint = function checkpoint(options) {
         context.state = domain.decode(memento.state);  // update actor state
     };
 
-    options.snapshot =  options.snapshot || {
-        created: {},
-        sent: []
-    };
+//    options.snapshot =  options.snapshot || options.newEffect();
     options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
         var snapshot = options.snapshot;
         var exception = false;
+/*
         try {
             if (effect.cause) {  // remove processed event
                 var memento = snapshot.sent.shift();
+                console.log('memento:', memento);
                 if ((memento.domain != effect.cause.domain)
                 ||  (memento.time != effect.cause.time)
                 ||  (memento.seq != effect.cause.seq)) {
@@ -184,14 +219,16 @@ module.exports.checkpoint = function checkpoint(options) {
                 // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
             }
             snapshotEffect(effect);
-            console.log('snapshot:', snapshot);
         } catch (ex) {
             exception = ex;
         }
+*/
+        console.log('snapshot:', snapshot);
         setImmediate(function () {
             callback(exception);
         });
     };
+/*
     var snapshotEffect = function snapshotEffect(effect) {
         var snapshot = options.snapshot;
         console.log('snapshotEffect:', effect);
@@ -221,25 +258,8 @@ module.exports.checkpoint = function checkpoint(options) {
         });
         snapshot.sent.forEach(eventBuffer);  // re-queue restored events
     };
+*/
 
-    options.newEffect = options.newEffect || function newEffect() {
-        return {
-            created: {},
-            sent: [],
-            output: []
-        };
-    };
-    options.effectIsEmpty = options.effectIsEmpty || function effectIsEmpty(effect) {
-        if (effect.cause
-        ||  effect.exception
-        ||  (effect.output.length > 0)
-        ||  (effect.sent.length > 0)
-        ||  (Object.keys(effect.created).length > 0)) {
-            return false;
-        }
-        return true;
-    };
-    
     options.addContext = options.addContext || function addContext(context) {
         if (options.effect) {
             var memento = actorMemento(context);
@@ -322,7 +342,7 @@ module.exports.checkpoint = function checkpoint(options) {
         }
     };
 
-    restoreSnapshot(options.snapshot);
+    options.applySnapshot();
     options.effect = options.newEffect();  // initialize empty effect
     setImmediate(function () {  // prime the pump...
         options.saveCheckpoint(options.errorHandler);
