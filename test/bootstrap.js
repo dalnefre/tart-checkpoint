@@ -68,7 +68,7 @@ test['can check balance of restored acccount'] = function (test) {
         behavior: accountBeh
     };
     var snapshot = checkpoint.domain.encode(object);
-//    fs.writeFileSync('./snapshot.json', snapshot);
+//    fs.writeFileSync('./account42.json', snapshot);
 //    var snapshot = '{"state":{"balance":42},"behavior":":function accountBeh(message) {\n    console.log(\'account:\', message);\n    if (message.type === \'balance\') {\n        // { type:\'balance\', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === \'adjust\') {\n        // { type:\'adjust\', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: \'Insufficient Funds\',\n                account: this.self\n            });\n        }\n    }\n}"}';
     console.log('snapshot:', snapshot);
     var actors = checkpoint.domain.decode(snapshot);
@@ -100,7 +100,7 @@ test['can check balance of reloaded acccount'] = function (test) {
     var sponsor = require('tart').minimal();
     
     var token = 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg';
-    var snapshot = fs.readFileSync('./snapshot.json');
+    var snapshot = fs.readFileSync('./account42.json');
     console.log('snapshot:', snapshot);
     var actors = checkpoint.domain.decode(snapshot);
     var context = actors[token];  // FIXME: ITERATE THROUGH KEYS AND CREATE ALL ACTORS
