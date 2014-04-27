@@ -241,23 +241,24 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     
     options.addContext = options.addContext || function addContext(context) {
-        console.log('addContext:', context);
-        options.contextMap[context.token] = context;
         if (options.effect) {
-            options.effect.created[context.token] = actorMemento(context);
+            var memento = actorMemento(context);
+            console.log('addContext:', memento);
+            options.effect.created[context.token] = memento;
         }
         return context;
     };
     options.addEvent = options.addEvent || function addEvent(event) {
-        console.log('addEvent:', event);
         if (options.effect) {
-            options.effect.sent.push(eventMemento(event));
+            var memento = eventMemento(event);
+            console.log('addEvent:', memento);
+            options.effect.sent.push(memento);
         }
         return event;
     };
     options.addOutput = options.addOutput || function addOutput(message) {
-        console.log('addOutput:', message);
         if (options.effect) {
+            console.log('addOutput:', message);
             options.effect.output.push(message);
         }
         return message;
@@ -314,6 +315,8 @@ module.exports.checkpoint = function checkpoint(options) {
                 behavior: behavior.toString(),
                 sponsor: create
             };
+            options.contextMap[token] = context;
+            console.log(token+':', context);
             options.addContext(context);
             return actor;
         }
