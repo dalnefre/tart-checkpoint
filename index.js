@@ -36,9 +36,8 @@ var marshal = require('tart-marshal');
 module.exports.checkpoint = function checkpoint(options) {
     options = options || {};
     
-    options.events = [];  // queue of pending events
-
-    var contextMap = {};  // map from tokens to actor contexts
+    options.eventQueue = [];  // queue of pending event mementos
+    options.contextMap = {};  // map from tokens to actor contexts
     
     var name = options.name || 'checkpoint';
     var sponsor = options.sponsor || tart.minimal();
@@ -59,7 +58,7 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     
     var eventBuffer = sponsor((function () {
-        var queue = options.events;  // alias event queue
+        var queue = options.eventQueue;  // alias event queue
         var bufferReadyBeh = function (event) {
             console.log('bufferReadyBeh:', event);
             if (event !== null) {  // put
@@ -101,14 +100,14 @@ module.exports.checkpoint = function checkpoint(options) {
     options.processEvent = options.processEvent || function processEvent(event) {
         console.log('processEvent event:', event);
         options.effect.cause = event;
-        var context = contextMap[event.token];
+        var context = options.contextMap[event.token];
         console.log('processEvent context:', context);
         var memento = actorMemento(context);  // capture initial state & behavior
         try {
             var message = domain.decode(event.message);
-    	    console.log('processEvent message:', message);
+            console.log('processEvent message:', message);
             var behavior = context.behavior;
-	        console.log('processEvent behavior:', behavior);
+            console.log('processEvent behavior:', behavior);
             context.behavior = options.compileBehavior(behavior);
             context.behavior(message);  // execute actor behavior
             memento = actorMemento(context);  // capture final state & behavior
@@ -149,7 +148,7 @@ module.exports.checkpoint = function checkpoint(options) {
         console.log('applyEffect:', effect);
         if (effect.update) {
             var memento = effect.update;
-            var context = contextMap[memento.token];
+            var context = options.contextMap[memento.token];
             context.behavior = memento.behavior;  // update actor behavior
             context.state = domain.decode(memento.state);  // update actor state
         }
@@ -213,7 +212,7 @@ module.exports.checkpoint = function checkpoint(options) {
             delete options.effect.created[token];
         });
         tokens.forEach(function (token) {  // overwrite dummy state & behavior
-            var context = contextMap[token];
+            var context = options.contextMap[token];
             var memento = snapshot.created[token];
             context.behavior = memento.behavior;
             context.state = domain.decode(memento.state);
@@ -242,7 +241,7 @@ module.exports.checkpoint = function checkpoint(options) {
     
     options.addContext = options.addContext || function addContext(context) {
         console.log('addContext:', context);
-        contextMap[context.token] = context;
+        options.contextMap[context.token] = context;
         options.effect.created[context.token] = actorMemento(context);
         return context;
     };
