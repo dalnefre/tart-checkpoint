@@ -129,14 +129,12 @@ module.exports.checkpoint = function checkpoint(options) {
         if (options.effectIsEmpty(effect)) { return callback(false); }
         options.logEffect(effect, function (error) {
             if (error) { return callback(error); }
-            options.applyEffect(effect);
-/*
-            setImmediate(function () {
-                options.logSnapshot(effect, callback);
-            });
-*/
-            setImmediate(function () {
-                callback(false);
+            options.saveSnapshot(effect, function (error) {
+                if (error) { return callback(error); }
+                options.applyEffect(effect);
+                setImmediate(function () {  // give effects some time to propagate
+                    callback(false);
+                });
             });
         });
     };
@@ -163,33 +161,32 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     
     options.logEffect = options.logEffect || function logEffect(effect, callback) {
-        var json = domain.encode(effect);
-        console.log('logEffect:', json);
-/*
+        console.log(Date.now()+':', effect);
         setImmediate(function () {
             callback(false);
         });
-*/
-        options.logSnapshot(effect, callback);
     };
 
-    options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
-        if (!effect.exception) {
-            var snapshot = options.newEffect();
-            Object.keys(options.contextMap).forEach(function (token) {
-                var context = options.contextMap[token];
-                snapshot.created[token] = actorMemento(context);  // make actor mementos
-            });
-            snapshot.sent = options.eventQueue.slice();  // copy pending events
+    options.saveSnapshot = options.saveSnapshot || function saveSnapshot(effect, callback) {
+        if (effect.exception) { return callback(false); }  // no snapshot on exception
+        var snapshot = options.newEffect();
+        Object.keys(options.contextMap).forEach(function (token) {
+            var context = options.contextMap[token];
+            snapshot.created[token] = actorMemento(context);  // make actor mementos
+        });
+        snapshot.sent = options.eventQueue.slice();  // copy pending events
 /**/
-            effect.sent.forEach(function (event) {
-                snapshot.sent.push(event);  // add new events
-            });
-            snapshot.output = effect.output.slice();  // copy new output
+        effect.sent.forEach(function (event) {
+            snapshot.sent.push(event);  // add new events
+        });
+        // FIXME: DO WE REALLY WANT TO SNAPSHOT OUTBOUND MESSAGES?
+        snapshot.output = effect.output.slice();  // copy new output
 /**/
-            options.snapshot = snapshot;  // publish snapshot
-            console.log('snapshot:', snapshot);
-        }
+        options.snapshot = snapshot;  // publish snapshot
+        options.logSnapshot(snapshot, callback);
+    };
+    options.logSnapshot = options.logSnapshot || function logSnapshot(snapshot, callback) {
+        console.log('snapshot:', snapshot);
         setImmediate(function () {
             callback(false);
         });
@@ -219,7 +216,7 @@ module.exports.checkpoint = function checkpoint(options) {
         if (!effect.exception) {
             Object.keys(effect.created).forEach(function (token) {
                 options.updateActor(effect.created[token]);
-            });  // FIXME: CONSIDER DOING created UPDATES ONLY IN applySnapshot()
+            });  // FIXME: CONSIDER DOING created UPDATES ONLY IN options.applySnapshot()
             effect.sent.forEach(eventBuffer);  // enqueue sent events
             effect.output.forEach(transport);  // output to original transport
         }
