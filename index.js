@@ -48,7 +48,6 @@ module.exports.checkpoint = function checkpoint(options) {
         console.log('checkpointReceptionist:', message);
         receptionist(message);  // delegate to original receptionist (cause effects)
         options.applyEffect(options.effect);  // Add messages sent, if any, to event queue.
-//        snapshotEffect(options.effect);  // FIXME: FIND A BETTER WAY TO CAPTURE SNAPSHOT
         options.effect = options.newEffect();  // Initialize empty effect.
     };
     var transport = domain.transport;
@@ -133,8 +132,15 @@ module.exports.checkpoint = function checkpoint(options) {
             if (error) { return callback(error); }
             // Add messages sent, if any, to event queue.
             options.applyEffect(effect);
-            // Checkpoint is done.
-            return callback(false);
+/*
+            // Create snapshot of final state
+            setImmediate(function () {
+                options.logSnapshot(effect, callback);
+            });
+*/
+            setImmediate(function () {
+                callback(false);
+            });
         });
     };
 
@@ -162,7 +168,32 @@ module.exports.checkpoint = function checkpoint(options) {
     options.logEffect = options.logEffect || function logEffect(effect, callback) {
         var json = domain.encode(effect);
         console.log('logEffect:', json);
+/*
+        setImmediate(function () {
+            callback(false);
+        });
+*/
         options.logSnapshot(effect, callback);
+    };
+
+    options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
+        var snapshot = options.newEffect();
+        Object.keys(options.contextMap).forEach(function (token) {
+            var context = options.contextMap[token];
+            snapshot.created[token] = actorMemento(context);  // make actor mementos
+        });
+        snapshot.sent = options.eventQueue.slice();  // copy pending events
+/**/
+        effect.sent.forEach(function (event) {
+            snapshot.sent.push(event);  // add new events
+        });
+        snapshot.output = effect.output.slice();  // copy new output
+/**/
+        options.snapshot = snapshot;  // publish snapshot
+        console.log('snapshot:', snapshot);
+        setImmediate(function () {
+            callback(false);
+        });
     };
 
     var ignoreBeh = (function () {}).toString();
@@ -199,66 +230,6 @@ module.exports.checkpoint = function checkpoint(options) {
         context.behavior = memento.behavior;  // update actor behavior
         context.state = domain.decode(memento.state);  // update actor state
     };
-
-//    options.snapshot =  options.snapshot || options.newEffect();
-    options.logSnapshot = options.logSnapshot || function logSnapshot(effect, callback) {
-        var snapshot = options.snapshot;
-        var exception = false;
-/*
-        try {
-            if (effect.cause) {  // remove processed event
-                var memento = snapshot.sent.shift();
-                console.log('memento:', memento);
-                if ((memento.domain != effect.cause.domain)
-                ||  (memento.time != effect.cause.time)
-                ||  (memento.seq != effect.cause.seq)) {
-                    throw new Error('Wrong event!'
-                        + ' expect:'+memento.domain+':'+memento.seq+'@'+memento.time
-                        + ' actual:'+effect.cause.domain+':'+effect.cause.seq+'@'+effect.cause.time);
-                }
-                // FIXME: RESTORE IN-MEMORY STATE ON EXCEPTION?
-            }
-            snapshotEffect(effect);
-        } catch (ex) {
-            exception = ex;
-        }
-*/
-        console.log('snapshot:', snapshot);
-        setImmediate(function () {
-            callback(exception);
-        });
-    };
-/*
-    var snapshotEffect = function snapshotEffect(effect) {
-        var snapshot = options.snapshot;
-        console.log('snapshotEffect:', effect);
-        if (effect.update) {  // update actor state/behavior
-            snapshot.created[effect.update.token] = effect.update;
-        }
-        Object.keys(effect.created).forEach(function (token) {
-            snapshot.created[token] = effect.created[token];
-        });
-        effect.sent.forEach(function (memento) {
-            snapshot.sent.push(memento);
-        });
-    };
-    var restoreSnapshot = function restoreSnapshot(snapshot) {
-        var ignoreBeh = (function () {}).toString();
-        console.log('restoreSnapshot:', snapshot);
-        var tokens = Object.keys(snapshot.created);
-        tokens.forEach(function (token) {  // create dummy actors
-            var actor = options.checkpoint.sponsor(ignoreBeh, {}, token);
-        });
-        tokens.forEach(function (token) {  // overwrite dummy state & behavior
-            var context = options.contextMap[token];
-            var memento = snapshot.created[token];
-            context.behavior = memento.behavior;
-            context.state = domain.decode(memento.state);
-            console.log(token+':', context);  // dump restored context to logfile
-        });
-        snapshot.sent.forEach(eventBuffer);  // re-queue restored events
-    };
-*/
 
     options.addContext = options.addContext || function addContext(context) {
         if (options.effect) {
