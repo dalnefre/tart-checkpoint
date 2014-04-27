@@ -46,9 +46,10 @@ module.exports.checkpoint = function checkpoint(options) {
     var receptionist = domain.receptionist;
     domain.receptionist = function checkpointReceptionist(message) {
         console.log('checkpointReceptionist:', message);
+        options.effect = options.newEffect();  // initialize empty effect
         receptionist(message);  // delegate to original receptionist (cause effects)
-        options.applyEffect(options.effect);  // Add messages sent, if any, to event queue.
-        options.effect = options.newEffect();  // Initialize empty effect.
+        options.applyEffect(options.effect);  // add messages sent, if any, to event queue
+        options.effect = null;
     };
     var transport = domain.transport;
     domain.transport = function checkpointTransport(message) {
@@ -86,7 +87,8 @@ module.exports.checkpoint = function checkpoint(options) {
     var eventConsumer = sponsor((function () {
         var eventConsumerBeh = function consumerBeh(event) {
             console.log('eventConsumerBeh:', event);
-            options.processEvent(event);
+            options.effect = options.newEffect();  // initialize empty effect
+            options.processEvent(event);  // accumulate effects caused by event
             options.saveCheckpoint(function (error) {
                 options.errorHandler(error);
                 // FIXME: WHAT SHOULD WE DO IF CHECKPOINT FAILS?
@@ -123,17 +125,12 @@ module.exports.checkpoint = function checkpoint(options) {
     options.saveCheckpoint = options.saveCheckpoint || function saveCheckpoint(callback) {
         var effect = options.effect;
         console.log('saveCheckpoint:', effect);
-        // If effect is empty, checkpoint is done.
+        options.effect = null;
         if (options.effectIsEmpty(effect)) { return callback(false); }
-        // Initialize empty effect.
-        options.effect = options.newEffect();
-        // Write effect to log.
         options.logEffect(effect, function (error) {
             if (error) { return callback(error); }
-            // Add messages sent, if any, to event queue.
             options.applyEffect(effect);
 /*
-            // Create snapshot of final state
             setImmediate(function () {
                 options.logSnapshot(effect, callback);
             });
@@ -202,9 +199,9 @@ module.exports.checkpoint = function checkpoint(options) {
     options.applySnapshot = options.applySnapshot || function applySnapshot() {
         var effect = options.effect;
         console.log('applySnapshot:', effect);
+        options.effect = null;  // suppress effects while restoring snapshot
         if (!options.effectIsEmpty(effect)) {
-            options.effect = null;  // suppress effects while restoring snapshot
-            // Ensure actors exist for each token (allows circular reference)
+            // ensure actors exist for each token (allows circular reference)
             Object.keys(effect.created).forEach(function (token) {
                 if (!options.contextMap[token]) {
                     options.checkpoint.sponsor(ignoreBeh, {}, token);
@@ -216,12 +213,13 @@ module.exports.checkpoint = function checkpoint(options) {
     options.applyEffect = options.applyEffect || function applyEffect(effect) {
         console.log('applyEffect:', effect);
         if (effect.update) {
+            // NOTE: In case of exception, this reverts to previous actor state.
             options.updateActor(effect.update);
         }
         if (!effect.exception) {
             Object.keys(effect.created).forEach(function (token) {
                 options.updateActor(effect.created[token]);
-            });
+            });  // FIXME: CONSIDER DOING created UPDATES ONLY IN applySnapshot()
             effect.sent.forEach(eventBuffer);  // enqueue sent events
             effect.output.forEach(transport);  // output to original transport
         }
@@ -317,7 +315,7 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.applySnapshot();
     options.effect = options.newEffect();  // initialize empty effect
-    setImmediate(function () {  // prime the pump...
+    setImmediate(function () {  // process effects of inline initialization
         options.saveCheckpoint(options.errorHandler);
     });
     
