@@ -190,9 +190,25 @@ var pingPongBeh = (function pingPongBeh(message) {
     this.state.ping(message.n);  // start
 }).toString();
 
-test['ping/pong generates accurate snapshots'] = function (test) {
+test['ping/pong generates logfile and snapshots'] = function (test) {
     test.expect(1);
-    var checkpoint = tart.checkpoint();
+    fs.unlinkSync('./logfile.json');
+    var logEffect = function logEffectToFile(effect, callback) {
+        var data = '';
+        data += Date.now() + ':';
+        data += JSON.stringify(effect) + '\n';
+        fs.appendFile('./logfile.json', data, callback);
+    };
+    var logSnapshot = function logSnapshotToFile(snapshot, callback) {
+        var data = '';
+        data += Date.now() + ':';
+        data += JSON.stringify(snapshot) + '\n';
+        fs.writeFile('./snapshot.json', data, callback);
+    };
+    var checkpoint = tart.checkpoint({
+        logEffect: logEffect,
+        logSnapshot: logSnapshot
+    });
 
     var sponsor = require('tart').minimal();
     var doneTest = sponsor(function (message) {
