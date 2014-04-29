@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "tart": "0.2.x",
-    "tart-marshal": "0.2.x"
+    "tart-marshal": "0.3.x"
   },
   "repository": {
     "type": "git",
