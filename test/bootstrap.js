@@ -206,7 +206,7 @@ test['ping/pong generates logfile and snapshots'] = function (test) {
     var logSnapshot = function logSnapshotToFile(snapshot, callback) {
         var data = '';
         data += Date.now() + ':';
-        data += JSON.stringify(snapshot) + '\n';
+        data += JSON.stringify(snapshot, null, 2) + '\n';
         fs.writeFile('./snapshot.json', data, callback);
     };
     var checkpoint = tart.checkpoint({

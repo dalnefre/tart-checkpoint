@@ -51,6 +51,7 @@ module.exports.checkpoint = function checkpoint(options) {
         receptionist(message);  // delegate to original receptionist (cause effects)
         options.applyEffect(options.effect);  // add messages sent, if any, to event queue
         options.effect = null;
+        options.schedule();  // try to dispatch next event
     };
     var transport = domain.transport;
     domain.transport = function checkpointTransport(message) {
@@ -73,7 +74,19 @@ module.exports.checkpoint = function checkpoint(options) {
         events.forEach(function (event) {
             options.eventQueue.push(event);
         });
-        options.schedule();  // try to dispatch next event
+    };
+    options.removeEvent = options.removeEvent || function removeEvent(event) {
+        var i = 0;
+        while (i < options.eventQueue.length) {
+            var event_i = options.eventQueue[i];
+            if ((event_i.domain === event.domain)
+            &&  (event_i.time === event.time)
+            &&  (event_i.seq === event.seq)) {
+                options.eventQueue.splice(i, 1);  // remove matching event
+                return;
+            }
+            ++i;
+        }
     };
     options.dispatch = options.dispatch || function dispatch() {
         var event = options.currentEvent;
@@ -120,14 +133,10 @@ module.exports.checkpoint = function checkpoint(options) {
         options.effect = null;
         if (options.effectIsEmpty(effect)) { return callback(false); }
         options.logEffect(effect, function (error) {
+            console.log('logEffect returned:', error);
             if (error) { return callback(error); }
-            options.saveSnapshot(effect, function (error) {
-                if (error) { return callback(error); }
-                options.applyEffect(effect);
-                setImmediate(function () {  // give effects some time to propagate
-                    callback(false);
-                });
-            });
+            options.applyEffect(effect);
+            options.saveSnapshot(effect, callback);
         });
     };
 
@@ -167,13 +176,10 @@ module.exports.checkpoint = function checkpoint(options) {
             snapshot.created[token] = actorMemento(context);  // make actor mementos
         });
         snapshot.sent = options.eventQueue.slice();  // copy pending events
-/**/
-        effect.sent.forEach(function (event) {
-            snapshot.sent.push(event);  // add new events
-        });
+/*
         // FIXME: DO WE REALLY WANT TO SNAPSHOT OUTBOUND MESSAGES?
         snapshot.output = effect.output.slice();  // copy new output
-/**/
+*/
         options.snapshot = snapshot;  // publish snapshot
         options.logSnapshot(snapshot, callback);
     };
@@ -190,12 +196,20 @@ module.exports.checkpoint = function checkpoint(options) {
         console.log('applySnapshot:', effect);
         options.effect = null;  // suppress effects while restoring snapshot
         if (!options.effectIsEmpty(effect)) {
+            if (effect.cause) {  // remove causal event from queue
+                options.removeEvent(effect.cause);
+            }
             // ensure actors exist for each token (allows circular reference)
             Object.keys(effect.created).forEach(function (token) {
                 if (!options.contextMap[token]) {
                     options.checkpoint.sponsor(ignoreBeh, {}, token);
                 }
             });
+            // re-create actor state and behavior
+            Object.keys(effect.created).forEach(function (token) {
+                options.updateActor(effect.created[token]);
+            });
+            // apply remaining effects (such as queueing events)
             options.applyEffect(effect);
         }
     };
@@ -206,9 +220,6 @@ module.exports.checkpoint = function checkpoint(options) {
             options.updateActor(effect.update);
         }
         if (!effect.exception) {
-            Object.keys(effect.created).forEach(function (token) {
-                options.updateActor(effect.created[token]);
-            });  // FIXME: CONSIDER DOING created UPDATES ONLY IN options.applySnapshot()
             options.enqueueEvents(effect.sent);  // enqueue sent events
             effect.output.forEach(transport);  // output to original transport
         }
@@ -302,11 +313,28 @@ module.exports.checkpoint = function checkpoint(options) {
         }
     };
 
-    options.applySnapshot();
-    options.effect = options.newEffect();  // initialize empty effect
-    setImmediate(function () {  // process effects of inline initialization
-        options.saveCheckpoint(options.errorHandler);
-    });
+    options.preInit = options.preInit || function preInit() {
+        console.log('preInit: BEGIN');
+        options.applySnapshot();
+        options.effect = options.newEffect();  // initialize empty effect
+        setImmediate(function () {
+            options.postInit();  // process effects of inline initialization
+        });
+        console.log('preInit: END');
+    };
+    options.postInit = options.postInit || function postInit() {
+        console.log('postInit: BEGIN');
+        options.saveCheckpoint(function (error) {
+            options.errorHandler(error);
+            // FIXME: WHAT SHOULD WE DO IF CHECKPOINT FAILS?
+            options.schedule();  // try to dispatch first event
+            console.log('currentEvent:', options.currentEvent);
+            console.log('eventQueue:', options.eventQueue);
+        });
+        console.log('postInit: END');
+    };
+
+    options.preInit();
     
     return options.checkpoint;
 };
