@@ -35,7 +35,8 @@ var marshal = require('tart-marshal');
 
 module.exports.checkpoint = function checkpoint(options) {
     options = options || {};
-    
+
+    options.currentEvent = null;
     options.eventQueue = [];  // queue of pending event mementos
     options.contextMap = {};  // map from tokens to actor contexts
     
@@ -57,46 +58,37 @@ module.exports.checkpoint = function checkpoint(options) {
         options.addOutput(message);  // buffer output messages
     };
     
-    var eventBuffer = sponsor((function () {
-        var queue = options.eventQueue;  // alias event queue
-        var bufferReadyBeh = function (event) {
-            console.log('bufferReadyBeh:', event);
-            if (event !== null) {  // put
-                console.log('bufferReadyBeh put:', event);
-                eventConsumer(event);
-                this.behavior = bufferWaitBeh;
+    options.schedule = options.schedule || function schedule() {
+        if (!options.currentEvent) {  // no event in progress, try to dispatch one
+            if (options.eventQueue.length > 0) {
+                options.currentEvent = options.dequeueEvent();
+                options.dispatch();  // asynchronous event dispatch
             }
-        };
-        var bufferWaitBeh = function (event) {
-            console.log('bufferWaitBeh:', event);
-            if (event === null) {  // take
-                console.log('bufferWaitBeh take:', queue);
-                if (queue.length) {
-                    event = queue.shift();
-                    eventConsumer(event);
-                } else {
-                    this.behavior = bufferReadyBeh;
-                }
-            } else {  // put
-                console.log('bufferWaitBeh put:', event);
-                queue.push(event);
-            }
-        };
-        return bufferReadyBeh;
-    })());
-    var eventConsumer = sponsor((function () {
-        var eventConsumerBeh = function consumerBeh(event) {
-            console.log('eventConsumerBeh:', event);
+        }
+    };
+    options.dequeueEvent = options.dequeueEvent || function dequeueEvent() {
+        return options.eventQueue.shift();
+    };
+    options.enqueueEvents = options.enqueueEvents || function enqueueEvents(events) {
+        events.forEach(function (event) {
+            options.eventQueue.push(event);
+        });
+        options.schedule();  // try to dispatch next event
+    };
+    options.dispatch = options.dispatch || function dispatch() {
+        var event = options.currentEvent;
+        console.log('dispatch:', event);
+        setImmediate(function () {
             options.effect = options.newEffect();  // initialize empty effect
             options.processEvent(event);  // accumulate effects caused by event
             options.saveCheckpoint(function (error) {
                 options.errorHandler(error);
                 // FIXME: WHAT SHOULD WE DO IF CHECKPOINT FAILS?
-                eventBuffer(null);  // request next event
+                options.currentEvent = null;  // done with this event
+                options.schedule();  // request next event, if any
             });
-        };
-        return eventConsumerBeh;
-    })());
+        });
+    }
 
     options.processEvent = options.processEvent || function processEvent(event) {
         console.log('processEvent event:', event);
@@ -217,7 +209,7 @@ module.exports.checkpoint = function checkpoint(options) {
             Object.keys(effect.created).forEach(function (token) {
                 options.updateActor(effect.created[token]);
             });  // FIXME: CONSIDER DOING created UPDATES ONLY IN options.applySnapshot()
-            effect.sent.forEach(eventBuffer);  // enqueue sent events
+            options.enqueueEvents(effect.sent);  // enqueue sent events
             effect.output.forEach(transport);  // output to original transport
         }
     };
