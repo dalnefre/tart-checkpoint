@@ -34,16 +34,15 @@ var tart = require('../index.js');
 
 var checkpoint = tart.checkpoint();
 
-var oneTimeBeh = "function oneTimeBeh(message) {"
-+ "    var actor = this.sponsor(this.state.createdBeh);" // create
-+ "    actor('foo');" // send
-+ "    this.behavior = this.state.becomeBeh;" // become
-+ "}";
+var oneTimeBeh = (function oneTimeBeh(message) {
+    console.log('oneTimeBeh:', message);
+    var becomeBeh = (function becomeBeh(message) {}).toString();
+    var actor = this.sponsor((function createdBeh(message) {
+        console.log('createdBeh:', message);
+    }).toString()); // create
+    actor(this.state.label); // send
+    this.behavior = becomeBeh; // become
+}).toString();
 
-var oneTimeState = {
-    createdBeh: "function createdBeh(message) {}",
-    becomeBeh: "function becomeBeh(message) {}"
-};
-
-var actor = checkpoint.sponsor(oneTimeBeh, oneTimeState);
+var actor = checkpoint.sponsor(oneTimeBeh, { label:'foo' });
 actor('bar');

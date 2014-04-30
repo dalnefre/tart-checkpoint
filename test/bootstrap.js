@@ -192,7 +192,11 @@ var pingPongBeh = (function pingPongBeh(message) {
 
 test['ping/pong generates logfile and snapshots'] = function (test) {
     test.expect(1);
-    fs.unlinkSync('./logfile.json');
+    try {
+        fs.unlinkSync('./logfile.json');
+    } catch (ex) {
+        console.log(ex);
+    }
     var logEffect = function logEffectToFile(effect, callback) {
         var data = '';
         data += Date.now() + ':';

@@ -28,18 +28,17 @@ var tart = require('../index.js');
 
 var checkpoint = tart.checkpoint();
 
-var oneTimeBeh = "function oneTimeBeh(message) {"
-+ "    var actor = this.sponsor(this.state.createdBeh);" // create
-+ "    actor('foo');" // send
-+ "    this.behavior = this.state.becomeBeh;" // become
-+ "}";
+var oneTimeBeh = (function oneTimeBeh(message) {
+    console.log('oneTimeBeh:', message);
+    var becomeBeh = (function becomeBeh(message) {}).toString();
+    var actor = this.sponsor((function createdBeh(message) {
+        console.log('createdBeh:', message);
+    }).toString()); // create
+    actor(this.state.label); // send
+    this.behavior = becomeBeh; // become
+}).toString();
 
-var oneTimeState = {
-    createdBeh: "function createdBeh(message) {}",
-    becomeBeh: "function becomeBeh(message) {}"
-};
-
-var actor = checkpoint.sponsor(oneTimeBeh, oneTimeState);
+var actor = checkpoint.sponsor(oneTimeBeh, { label:'foo' });
 actor('bar');
 
 ```
@@ -50,28 +49,39 @@ actor('bar');
 
 ## Documentation
 
+Checkpoint objects are intended to be safely convertible to JSON and back again without loss of information.
+
 ### Events
 
-An `event` is an abstraction around the concept of a `message` being delivered to the actor. 
-It is a tuple of a `message` and `context`. 
-When an `event` is dispatched, the actor `context` is bound to `this`  
-and the `context.behavior` is executed with the `message` as a parameter. 
-The result of processing the `message` is an `effect`.
+An `event` is an _Object_ that represents a _message_ sent to an _actor_.
 
 An `event` has the following attributes:
-  * `context`: _Object_ Actor context the message was delivered to.
-  * `message`: _Any_ Message that was delivered.
+  * `domain`: _String_ URI identifying the domain that generated the event.
+  * `time`: _Number_ `Date.now()` timestamp when the event was generated.
+  * `seq`: _Number_ event sequence number, monotonically increasing within `time`.
+  * `message`: _String_ Transport-encoded message to be delivered.
+  * `token`: _String_ Transport token identifying the target actor.
+
+### Actors
+
+An `actor` is an _Object_ that represents a unique entity with _state_ and _behavior_.
+
+An `actor` has the following attributes:
+  * `state`: _String_ Transport-encoded object representing the actor's state.
+  * `behavior`: _String_ The actor's behavior function in source form.
+  * `token`: _String_ Transport token uniquely identifying this actor.
 
 ### Effects
 
-An `effect` is an _Object_ that is the _effect_ of dispatching an `event`. It has the following attributes:
-  * `became`: _Function_ _(Default: undefined)_ `function (message) {}` If the actor changed its behavior as a result of processing a `message`, the new behavior it became is referenced here.
-  * `behavior`: _Function_ _(Default: undefined)_ `function (message) {}` The behavior that executed to cause this `effect`, if any.
-  * `created`: _Array_ _(Default: [])_ An array of created contexts. A context is the execution context of an actor behavior (the value of _this_ when the behavior executes).
-  * `event`: _Object_ _(Default: undefined)_ The event that is the cause of this `effect`, if any.
-  * `exception`: _Error_ _(Default: undefined)_ If dispatching the `event` caused an exception, that exception is stored here.
-  * `sent`: _Array_ _(Default: [])_ An array of `events` that represent messages sent by the actor as a result of processing a `message`.
-  * `output`: _Array_ _(Default: [])_ An array of transport-encoded remote-messages sent by the actor as a result of processing a `message`.
+An `effect` is an _Object_ that represents the result of processing an _event_.
+
+An `effect` has the following attributes:
+  * `created`: _Object_ _(Default: {})_ A map from tokens to newly-created `actors`.
+  * `sent`: _Array_ _(Default: [])_ An array of `events` representing newly-sent _messages_.
+  * `output`: _Array_ _(Default: [])_ An array of transport-encoded messages to remote actors.
+  * `cause`: _Object_ _(Default: undefined)_ The `event` that is the cause of this `effect`, if any.
+  * `update`: _Function_ _(Default: undefined)_ The new _state_ and _behavior_ of the `actor` that caused this `event`.
+  * `exception`: _Object_ _(Default: undefined)_ If dispatching the `event` caused an exception, that exception is stored here.
 
 **Public API**
 
@@ -83,10 +93,10 @@ An `effect` is an _Object_ that is the _effect_ of dispatching an `event`. It ha
     * `logEffect`: _Function_ `function (effect, callback) {}` 
         Record `effect`, then call `callback(error)`.
   * Return: _Object_ The checkpoint control object.
-    * `router`: _Object_ Router for checkpoint/marshal domain.
     * `domain`: _Object_ Marshal domain.
-    * `sponsor`: _Function_ `function (behavior[, state]) {}` 
-        A capability to create new actors with persistent state.
+    * `router`: _Object_ Router for marshal domain.
+    * `sponsor`: _Function_ `function (behavior[, state[, token]]) {}` 
+        A capability to create new actors with persistent state and optional identity.
 
 Create a checkpoint control object.
 

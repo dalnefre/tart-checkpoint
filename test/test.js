@@ -55,24 +55,21 @@ test['readme example processes two messages'] = function (test) {
         }
     });
 
-    var oneTimeBeh = "function oneTimeBeh(message) {"
-        + "this.state.test({ step:'bar', value:message, path:require('path') });"
-        + "var actor = this.sponsor(this.state.createdBeh, this.state);"
-        + "actor('foo');"
-        + "this.behavior = this.state.becomeBeh;"
-    + "}";
+    var oneTimeBeh = (function oneTimeBeh(message) {
+        this.state.test({ step:'bar', value:message, path:require('path') });
+        var becomeBeh = (function becomeBeh(message) {
+            this.state.test({ step:'fail', value:message });
+        }).toString();
+        var actor = this.sponsor((function createdBeh(message) {
+            this.state.test({ step:'foo', value:message });
+        }).toString(), this.state); // create
+        actor(this.state.label); // send
+        this.behavior = becomeBeh; // become
+    }).toString();
 
-    var sharedState = {
-        createdBeh: "function createdBeh(message) {"
-            + "this.state.test({ step:'foo', value:message });"
-        + "}",
-        becomeBeh: "function becomeBeh(message) {"
-            + "this.state.test({ step:'fail', value:message });"
-        + "}",
-        test: testFixture
-    };
-    
-    var actor = checkpoint.sponsor(oneTimeBeh, sharedState);
+    var actor = checkpoint.sponsor(oneTimeBeh, {
+        label: 'foo',
+        test: testFixture });
     actor('bar');
 };
 
