@@ -165,3 +165,62 @@ test['can balance transfer between persistent acccounts'] = function (test) {
         to: account0
     });
 };
+
+test['can see balance transfer in mirrored configuration'] = function (test) {
+    test.expect(2);
+    var originalOpt = {
+        logEffect: function originalLogEffect(effect, callback) {
+            mirroredOpt.effect = effect;
+            mirroredOpt.applySnapshot();
+            mirroredOpt.saveSnapshot(effect, callback);
+        }
+    };
+    var original = tart.checkpoint(originalOpt);
+    var mirroredOpt = {
+        schedule: function mirroredSchedule() {
+            console.log('mirroredSchedule IGNORED!');  // should not be called
+        }
+    };
+    var mirrored = tart.checkpoint(mirroredOpt);
+    var sponsor = require('tart').minimal();
+
+    var account0 = original.sponsor(accountBeh, { balance: 0 });
+    var account1 = original.sponsor(accountBeh, { balance: 42 });
+    var transAct = original.sponsor(transferBeh);
+
+    var remote = original.router.domain('remote');
+    var endTest = sponsor(function (message) {
+        console.log('endTest:', message);
+        console.log('originalOpt:', originalOpt);
+        console.log('mirroredOpt:', mirroredOpt);
+        test.deepEqual(originalOpt.snapshot, mirroredOpt.snapshot);
+        test.done();  // signal test completion
+    });
+    var failTest = sponsor(function (message) {
+        console.log('failTest:', message);
+        test.assert(false);  // should not be called
+    });
+    var expect13 = sponsor(function (message) {
+        console.log('expect13:', message);
+        test.equal(message, 13);
+        endTest();
+    });
+    
+    mirrored.router.routingTable['remote'] = function mirroredRoute(message) {
+        console.log('mirroredRoute:', message);
+    };
+    
+    var proxy = original.domain.decode(
+        remote.encode({
+            expect13: expect13,
+            failTest: failTest
+        })
+    );
+    transAct({
+        from: account1,
+        to: account0,
+        amount: 13,
+        ok: proxy.expect13,
+        fail: proxy.failTest
+    });
+};
