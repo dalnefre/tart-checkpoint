@@ -120,8 +120,11 @@ module.exports.checkpoint = function checkpoint(options) {
             context.behavior(message);  // execute actor behavior
             memento = actorMemento(context);  // capture final state & behavior
         } catch (exception) {
-            // FIXME: consider removing "created" actors from contextMap
             options.effect.exception = exception;
+            // remove newly-created actors
+            Object.keys(options.effect.created).forEach(function (token) {
+                delete options.contextMap[token];
+            });
         }
         options.effect.update = memento;
         console.log('processEvent effect:', options.effect);
@@ -307,7 +310,6 @@ module.exports.checkpoint = function checkpoint(options) {
                 behavior: behavior.toString(),
                 sponsor: create
             };
-            // FIXME: consider not adding new actors to contextMap until applyEffect
             options.contextMap[token] = context;
             console.log(token+':', context);
             options.addContext(context);
