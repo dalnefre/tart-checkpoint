@@ -94,7 +94,9 @@ module.exports.checkpoint = function checkpoint(options) {
         setImmediate(function () {
             options.effect = options.newEffect();  // initialize empty effect
             options.processEvent(event);  // accumulate effects caused by event
-            options.saveCheckpoint(function (error) {
+            var effect = options.effect;  // capture effects
+            options.effect = null;  // clear effect collector
+            options.saveCheckpoint(effect, function (error) {
                 options.errorHandler(error);
                 // FIXME: WHAT SHOULD WE DO IF CHECKPOINT FAILS?
                 options.currentEvent = null;  // done with this event
@@ -118,6 +120,7 @@ module.exports.checkpoint = function checkpoint(options) {
             context.behavior(message);  // execute actor behavior
             memento = actorMemento(context);  // capture final state & behavior
         } catch (exception) {
+            // FIXME: consider removing "created" actors from contextMap
             options.effect.exception = exception;
         }
         options.effect.update = memento;
@@ -127,10 +130,8 @@ module.exports.checkpoint = function checkpoint(options) {
         return eval('(' + source + ')');  // must produce a Function
     };
 
-    options.saveCheckpoint = options.saveCheckpoint || function saveCheckpoint(callback) {
-        var effect = options.effect;
+    options.saveCheckpoint = options.saveCheckpoint || function saveCheckpoint(effect, callback) {
         console.log('saveCheckpoint:', effect);
-        options.effect = null;
         if (options.effectIsEmpty(effect)) { return callback(false); }
         options.logEffect(effect, function (error) {
             console.log('logEffect returned:', error);
@@ -306,6 +307,7 @@ module.exports.checkpoint = function checkpoint(options) {
                 behavior: behavior.toString(),
                 sponsor: create
             };
+            // FIXME: consider not adding new actors to contextMap until applyEffect
             options.contextMap[token] = context;
             console.log(token+':', context);
             options.addContext(context);
@@ -324,10 +326,13 @@ module.exports.checkpoint = function checkpoint(options) {
     };
     options.postInit = options.postInit || function postInit() {
         console.log('postInit: BEGIN');
-        options.saveCheckpoint(function (error) {
+        var effect = options.effect;  // capture effects
+        options.effect = null;  // clear effect collector
+        options.saveCheckpoint(effect, function (error) {
             options.errorHandler(error);
             // FIXME: WHAT SHOULD WE DO IF CHECKPOINT FAILS?
             options.schedule();  // try to dispatch first event
+            // FIXME: consider requiring the host to call schedule() after initialization
             console.log('currentEvent:', options.currentEvent);
             console.log('eventQueue:', options.eventQueue);
         });

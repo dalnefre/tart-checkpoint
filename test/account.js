@@ -170,7 +170,7 @@ test['can see balance transfer in mirrored configuration'] = function (test) {
     test.expect(2);
     var originalOpt = {
         logEffect: function originalLogEffect(effect, callback) {
-            mirroredOpt.effect = effect;
+            mirroredOpt.effect = JSON.parse(JSON.stringify(effect));
             mirroredOpt.applySnapshot();
             mirroredOpt.saveSnapshot(effect, callback);
         }
@@ -178,7 +178,8 @@ test['can see balance transfer in mirrored configuration'] = function (test) {
     var original = tart.checkpoint(originalOpt);
     var mirroredOpt = {
         schedule: function mirroredSchedule() {
-            console.log('mirroredSchedule IGNORED!');  // should not be called
+            console.log('mirroredSchedule IGNORED!');
+//            process.exit(1);  --- this is called during checkpoint post-initialization
         }
     };
     var mirrored = tart.checkpoint(mirroredOpt);

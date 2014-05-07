@@ -80,7 +80,7 @@ An `effect` has the following attributes:
   * `sent`: _Array_ _(Default: [])_ An array of `events` representing newly-sent _messages_.
   * `output`: _Array_ _(Default: [])_ An array of transport-encoded messages to remote actors.
   * `cause`: _Object_ _(Default: undefined)_ The `event` that is the cause of this `effect`, if any.
-  * `update`: _Function_ _(Default: undefined)_ The new _state_ and _behavior_ of the `actor` that caused this `event`.
+  * `update`: _Object_ _(Default: undefined)_ The new _state_ and _behavior_ of the `actor` that was the target of this `event`.
   * `exception`: _Object_ _(Default: undefined)_ If dispatching the `event` caused an exception, that exception is stored here.
 
 **Public API**
