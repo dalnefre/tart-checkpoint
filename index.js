@@ -41,7 +41,7 @@ module.exports.checkpoint = function checkpoint(options) {
     options.contextMap = {};  // map from tokens to actor contexts
     
     var name = options.name || 'checkpoint';
-    var sponsor = options.sponsor || tart.minimal();
+//    var sponsor = options.sponsor || tart.minimal();
     var router = marshal.router();
     var domain = router.domain(name);
     var receptionist = domain.receptionist;
