@@ -58,7 +58,7 @@ var accountBeh = (function accountBeh(message) {
 
 test['can check balance of restored acccount'] = function (test) {
     test.expect(1);
-    var checkpoint = tart.checkpoint();
+    var checkpoint = tart.checkpoint({ name: 'checkpoint' });
     var sponsor = require('tart').minimal();
     
     var token = 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg';
@@ -96,7 +96,7 @@ test['can check balance of restored acccount'] = function (test) {
 
 test['can check balance of reloaded acccount'] = function (test) {
     test.expect(1);
-    var checkpoint = tart.checkpoint();
+    var checkpoint = tart.checkpoint({ name: 'checkpoint' });
     var sponsor = require('tart').minimal();
     
     var token = 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg';
@@ -255,7 +255,10 @@ test['ping/pong restored from snapshot'] = function (test) {
             token: 'checkpoint#QxXHBVLOaIdao9gh25zET5JSPdfztRPnT6/ON5cpvmXYllPBvX9g0S15'
         }
     ];
-    var checkpoint = tart.checkpoint({ effect:snapshot });
+    var checkpoint = tart.checkpoint({
+        name: 'checkpoint',
+        effect: snapshot
+    });
 
     var sponsor = require('tart').minimal();
     var doneTest = sponsor(function (message) {

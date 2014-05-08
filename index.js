@@ -40,10 +40,9 @@ module.exports.checkpoint = function checkpoint(options) {
     options.eventQueue = [];  // queue of pending event mementos
     options.contextMap = {};  // map from tokens to actor contexts
     
-    var name = options.name || 'checkpoint';
 //    var sponsor = options.sponsor || tart.minimal();
     var router = marshal.router();
-    var domain = router.domain(name);
+    var domain = router.domain(options.name);
     var receptionist = domain.receptionist;
     domain.receptionist = function checkpointReceptionist(message) {
         console.log('checkpointReceptionist:', message);
