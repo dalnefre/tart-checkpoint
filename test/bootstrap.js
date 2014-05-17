@@ -103,16 +103,36 @@ var pingPongBeh = (function pingPongBeh(message) {
 
 test['ping/pong generates logfile and snapshots'] = function (test) {
     test.expect(1);
+    var sponsor = require('tart').minimal();
+
     try {
         fs.unlinkSync('./logfile.json');
     } catch (ex) {
         console.log(ex);
     }
-    var logEffect = function logEffectToFile(effect, callback) {
+    var logger = sponsor(function loggerBeh(message) {
+        console.log('logger:', message);
         var data = '';
         data += Date.now() + ':';
-        data += JSON.stringify(effect) + '\n';
-        fs.appendFile('./logfile.json', data, callback);
+        data += JSON.stringify(message.effect) + '\n';
+        fs.appendFile('./logfile.json', data, function callback(error) {
+            if (error) {
+                message.fail(error);
+            } else {
+                message.ok(message.effect);
+            }
+        });
+    });
+    var logAdaptor = function logAdaptor(effect, callback) {
+        logger({
+            effect: effect,
+            ok: function (effect) {
+                callback(null, effect);
+            },
+            fail: function (error) {
+                callback(error);
+            }
+        });
     };
     var logSnapshot = function logSnapshotToFile(snapshot, callback) {
         var data = '';
@@ -121,11 +141,10 @@ test['ping/pong generates logfile and snapshots'] = function (test) {
         fs.writeFile('./snapshot.json', data, callback);
     };
     var checkpoint = tart.checkpoint({
-        logEffect: logEffect,
+        logEffect: logAdaptor,
         logSnapshot: logSnapshot
     });
 
-    var sponsor = require('tart').minimal();
     var doneTest = sponsor(function (message) {
         console.log('doneTest:', message);
         test.equal(message, 'pong');
