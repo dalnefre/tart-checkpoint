@@ -31,6 +31,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 "use strict";
 
 var tart = require('../index.js');
+var fs = require('fs');
 
 var test = module.exports = {};
 //test = {};  // FIXME: DISABLE ALL TESTS IN THIS SUITE
@@ -164,6 +165,75 @@ test['can balance transfer between persistent acccounts'] = function (test) {
         from: account1,
         to: account0
     });
+};
+
+test['can check balance of restored acccount'] = function (test) {
+    test.expect(1);
+    var checkpoint = tart.checkpoint({ name: 'checkpoint' });
+    var sponsor = require('tart').minimal();
+    
+    var token = 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg';
+    var object = {};
+    object[token] = {
+        state: { balance: 42 },
+        behavior: accountBeh
+    };
+    var snapshot = checkpoint.domain.encode(object);
+//    fs.writeFileSync('./account42.json', snapshot);
+//    var snapshot = '{"state":{"balance":42},"behavior":":function accountBeh(message) {\n    console.log(\'account:\', message);\n    if (message.type === \'balance\') {\n        // { type:\'balance\', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === \'adjust\') {\n        // { type:\'adjust\', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: \'Insufficient Funds\',\n                account: this.self\n            });\n        }\n    }\n}"}';
+    console.log('snapshot:', snapshot);
+    var actors = checkpoint.domain.decode(snapshot);
+    var context = actors[token];
+    var actor = checkpoint.sponsor(context.behavior, context.state, token);
+
+    var remote = checkpoint.router.domain('remote');
+    var proxy = remote.remoteToLocal(token);
+
+    var endTest = sponsor(function (message) {
+        console.log('endTest:', message);
+        test.done();  // signal test completion
+    });
+    var failTest = sponsor(function (message) {
+        console.log('failTest:', message);
+        test.assert(false);  // should not be called
+    });
+    var expect42 = sponsor(function (message) {
+        console.log('expect42:', message);
+        test.equal(message, 42);
+        endTest();
+    });
+    proxy({ type: 'balance', ok: expect42, fail: failTest });
+};
+
+test['can check balance of reloaded acccount'] = function (test) {
+    test.expect(1);
+    var checkpoint = tart.checkpoint({ name: 'checkpoint' });
+    var sponsor = require('tart').minimal();
+    
+    var token = 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg';
+    var snapshot = fs.readFileSync('./account42.json');
+    console.log('snapshot:', snapshot);
+    var actors = checkpoint.domain.decode(snapshot);
+    var context = actors[token];  // FIXME: ITERATE THROUGH KEYS AND CREATE ALL ACTORS
+    var actor = checkpoint.sponsor(context.behavior, context.state, token);
+
+    var remote = checkpoint.router.domain('remote');
+    var proxy = remote.remoteToLocal(token);
+
+    var endTest = sponsor(function (message) {
+        console.log('endTest:', message);
+        test.done();  // signal test completion
+    });
+    var failTest = sponsor(function (message) {
+        console.log('failTest:', message);
+        test.assert(false);  // should not be called
+    });
+    var expect42 = sponsor(function (message) {
+        console.log('expect42:', message);
+        test.equal(message, 42);
+        endTest();
+    });
+    proxy({ type: 'balance', ok: expect42, fail: failTest });
 };
 
 test['can see balance transfer in mirrored configuration'] = function (test) {
