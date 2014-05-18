@@ -151,6 +151,7 @@ test['ping/pong generates logfile and snapshots'] = function (test) {
 test['ping/pong restored from snapshot'] = function (test) {
     test.expect(1);
     var snapshot = {
+    	snapshot: true,
         created: {},
         sent: [],
         output: []

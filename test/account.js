@@ -167,85 +167,17 @@ test['can balance transfer between persistent acccounts'] = function (test) {
     });
 };
 
-test['can check balance of restored acccount'] = function (test) {
-    test.expect(1);
-    var checkpoint = tart.checkpoint({ name: 'checkpoint' });
-    var sponsor = require('tart').minimal();
-    
-    var token = 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg';
-    var object = {};
-    object[token] = {
-        state: { balance: 42 },
-        behavior: accountBeh
-    };
-    var snapshot = checkpoint.domain.encode(object);
-//    fs.writeFileSync('./account42.json', snapshot);
-//    var snapshot = '{"state":{"balance":42},"behavior":":function accountBeh(message) {\n    console.log(\'account:\', message);\n    if (message.type === \'balance\') {\n        // { type:\'balance\', ok:, fail: }\n        message.ok(this.state.balance);\n    } else if (message.type === \'adjust\') {\n        // { type:\'adjust\', amount:, ok:, fail: }\n        var balance = this.state.balance + message.amount;\n        if (balance >= 0) {\n            this.state.balance = balance;\n            message.ok(this.state.balance);\n        } else {\n            message.fail({\n                error: \'Insufficient Funds\',\n                account: this.self\n            });\n        }\n    }\n}"}';
-    console.log('snapshot:', snapshot);
-    var actors = checkpoint.domain.decode(snapshot);
-    var context = actors[token];
-    var actor = checkpoint.sponsor(context.behavior, context.state, token);
-
-    var remote = checkpoint.router.domain('remote');
-    var proxy = remote.remoteToLocal(token);
-
-    var endTest = sponsor(function (message) {
-        console.log('endTest:', message);
-        test.done();  // signal test completion
-    });
-    var failTest = sponsor(function (message) {
-        console.log('failTest:', message);
-        test.assert(false);  // should not be called
-    });
-    var expect42 = sponsor(function (message) {
-        console.log('expect42:', message);
-        test.equal(message, 42);
-        endTest();
-    });
-    proxy({ type: 'balance', ok: expect42, fail: failTest });
-};
-
-test['can check balance of reloaded acccount'] = function (test) {
-    test.expect(1);
-    var checkpoint = tart.checkpoint({ name: 'checkpoint' });
-    var sponsor = require('tart').minimal();
-    
-    var token = 'checkpoint#68r3paEw31ozVBvyMNg111706DsRjA2kYV7uuQ7nHCukRTu4wkyWwRdg';
-    var snapshot = fs.readFileSync('./account42.json');
-    console.log('snapshot:', snapshot);
-    var actors = checkpoint.domain.decode(snapshot);
-    var context = actors[token];  // FIXME: ITERATE THROUGH KEYS AND CREATE ALL ACTORS
-    var actor = checkpoint.sponsor(context.behavior, context.state, token);
-
-    var remote = checkpoint.router.domain('remote');
-    var proxy = remote.remoteToLocal(token);
-
-    var endTest = sponsor(function (message) {
-        console.log('endTest:', message);
-        test.done();  // signal test completion
-    });
-    var failTest = sponsor(function (message) {
-        console.log('failTest:', message);
-        test.assert(false);  // should not be called
-    });
-    var expect42 = sponsor(function (message) {
-        console.log('expect42:', message);
-        test.equal(message, 42);
-        endTest();
-    });
-    proxy({ type: 'balance', ok: expect42, fail: failTest });
-};
-
 test['can see balance transfer in mirrored configuration'] = function (test) {
     test.expect(2);
     var sponsor = require('tart').minimal();
     
+    var originalSnapshot = {};
     var originalOpt = {
         logger: sponsor(function logger(message) {
             console.log('logger:', message);
             var effect = message.effect;
             mirroredOpt.effect = JSON.parse(JSON.stringify(effect));
-            mirroredOpt.applySnapshot();
+            mirroredOpt.applySnapshot(effect);
             mirroredOpt.saveSnapshot(effect, function callback(error) {
                 if (error) {
                     message.fail(error);
@@ -253,13 +185,24 @@ test['can see balance transfer in mirrored configuration'] = function (test) {
                     message.ok(effect);
                 }
             });
-        })
+        }),
+        logSnapshot: function logSnapshot(snapshot, callback) {
+            console.log('originalSnapshot:', snapshot);
+            originalSnapshot = snapshot;
+            callback(null);
+        }
     };
     var original = tart.checkpoint(originalOpt);
+    var mirroredSnapshot = {};
     var mirroredOpt = {
         schedule: function mirroredSchedule() {
             console.log('mirroredSchedule IGNORED!');
 //            process.exit(1);  --- this is called during checkpoint post-initialization
+        },
+        logSnapshot: function logSnapshot(snapshot, callback) {
+            console.log('mirroredSnapshot:', snapshot);
+            mirroredSnapshot = snapshot;
+            callback(null);
         }
     };
     var mirrored = tart.checkpoint(mirroredOpt);
@@ -273,7 +216,9 @@ test['can see balance transfer in mirrored configuration'] = function (test) {
         console.log('endTest:', message);
         console.log('originalOpt:', originalOpt);
         console.log('mirroredOpt:', mirroredOpt);
-        test.deepEqual(originalOpt.snapshot, mirroredOpt.snapshot);
+        console.log('originalSnapshot:', originalSnapshot);
+        console.log('mirroredSnapshot:', mirroredSnapshot);
+        test.deepEqual(originalSnapshot, mirroredSnapshot);
         test.done();  // signal test completion
     });
     var failTest = sponsor(function (message) {

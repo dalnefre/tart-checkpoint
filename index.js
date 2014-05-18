@@ -177,6 +177,7 @@ module.exports.checkpoint = function checkpoint(options) {
     options.saveSnapshot = options.saveSnapshot || function saveSnapshot(effect, callback) {
         if (effect.exception) { return callback(false); }  // no snapshot on exception
         var snapshot = options.newEffect();
+        snapshot.snapshot = true;  // mark this "effect" as a full snapshot
         Object.keys(options.contextMap).forEach(function (token) {
             var context = options.contextMap[token];
             snapshot.created[token] = actorMemento(context);  // make actor mementos
@@ -186,7 +187,6 @@ module.exports.checkpoint = function checkpoint(options) {
         // FIXME: DO WE REALLY WANT TO SNAPSHOT OUTBOUND MESSAGES?
         snapshot.output = effect.output.slice();  // copy new output
 */
-        options.snapshot = snapshot;  // publish snapshot
         options.logSnapshot(snapshot, callback);
     };
     options.logSnapshot = options.logSnapshot || function logSnapshot(snapshot, callback) {
@@ -197,8 +197,7 @@ module.exports.checkpoint = function checkpoint(options) {
     };
 
     var ignoreBeh = (function () {}).toString();
-    options.applySnapshot = options.applySnapshot || function applySnapshot() {
-        var effect = options.effect;
+    options.applySnapshot = options.applySnapshot || function applySnapshot(effect) {
         console.log('applySnapshot:', effect);
         options.effect = null;  // suppress effects while restoring snapshot
         if (!options.effectIsEmpty(effect)) {
@@ -321,7 +320,9 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.preInit = options.preInit || function preInit() {
         console.log('preInit: BEGIN');
-        options.applySnapshot();
+        if (options.effect) {
+            options.applySnapshot(options.effect);
+        }
         options.effect = options.newEffect();  // initialize empty effect
         setImmediate(function () {
             options.postInit();  // process effects of inline initialization
