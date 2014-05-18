@@ -147,12 +147,16 @@ module.exports.checkpoint = function checkpoint(options) {
         });
     };
 
-    options.newEffect = options.newEffect || function newEffect() {
-        return {
+    options.newEffect = options.newEffect || function newEffect(snapshot) {
+        var effect = {
             created: {},
             sent: [],
             output: []
         };
+        if (snapshot) {
+            effect.snapshot = true;
+        }
+        return effect;
     };
     options.effectIsEmpty = options.effectIsEmpty || function effectIsEmpty(effect) {
         if (!effect) {
@@ -176,8 +180,7 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.saveSnapshot = options.saveSnapshot || function saveSnapshot(effect, callback) {
         if (effect.exception) { return callback(false); }  // no snapshot on exception
-        var effect = options.newEffect();
-        effect.snapshot = true;  // mark this effect as a full snapshot
+        var effect = options.newEffect(true);  // create "snapshot" effect
         Object.keys(options.contextMap).forEach(function (token) {
             var context = options.contextMap[token];
             effect.created[token] = actorMemento(context);  // make actor mementos
