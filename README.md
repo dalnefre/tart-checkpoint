@@ -89,9 +89,12 @@ An `effect` has the following attributes:
 
 ### tart.checkpoint(options)
 
-  * `options`: _Object_ _(Default: undefined)_ Optional overrides.  
-    * `logEffect`: _Function_ `function (effect, callback) {}` 
-        Record `effect`, then call `callback(error)`.
+  * `options`: _Object_ _(Default: undefined)_ Optional overrides.
+    * `logger`: _Actor_ `function (message) {}`  Record effects
+      * `message`: _Object_ ...
+        * `effect`: _Object_ The `effect` to record.
+        * `ok`: _Actor_ On success, send `effect` here.
+        * `fail`: _Actor_ On failure, send `error` here.
   * Return: _Object_ The checkpoint control object.
     * `domain`: _Object_ Marshal domain.
     * `router`: _Object_ Router for marshal domain.

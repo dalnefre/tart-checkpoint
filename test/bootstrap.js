@@ -123,17 +123,6 @@ test['ping/pong generates logfile and snapshots'] = function (test) {
             }
         });
     });
-    var logAdaptor = function logAdaptor(effect, callback) {
-        logger({
-            effect: effect,
-            ok: function (effect) {
-                callback(null, effect);
-            },
-            fail: function (error) {
-                callback(error);
-            }
-        });
-    };
     var logSnapshot = function logSnapshotToFile(snapshot, callback) {
         var data = '';
         data += Date.now() + ':';
@@ -141,7 +130,7 @@ test['ping/pong generates logfile and snapshots'] = function (test) {
         fs.writeFile('./snapshot.json', data, callback);
     };
     var checkpoint = tart.checkpoint({
-        logEffect: logAdaptor,
+        logger: logger,
         logSnapshot: logSnapshot
     });
 

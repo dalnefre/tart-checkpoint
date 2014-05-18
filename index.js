@@ -135,11 +135,15 @@ module.exports.checkpoint = function checkpoint(options) {
     options.saveCheckpoint = options.saveCheckpoint || function saveCheckpoint(effect, callback) {
         console.log('saveCheckpoint:', effect);
         if (options.effectIsEmpty(effect)) { return callback(false); }
-        options.logEffect(effect, function (error) {
-            console.log('logEffect returned:', error);
-            if (error) { return callback(error); }
-            options.applyEffect(effect);
-            options.saveSnapshot(effect, callback);
+        options.logger({
+            effect: effect,
+            ok: function (effect) {
+                options.applyEffect(effect);
+                options.saveSnapshot(effect, callback);
+            },
+            fail: function (error) {
+                callback(error);
+            }
         });
     };
 
@@ -164,11 +168,10 @@ module.exports.checkpoint = function checkpoint(options) {
         return true;
     };
     
-    options.logEffect = options.logEffect || function logEffect(effect, callback) {
+    options.logger = options.logger || function logger(message) {  // FIXME: should be an actor?
+        var effect = message.effect;
         console.log(Date.now()+':', effect);
-        setImmediate(function () {
-            callback(false);
-        });
+        message.ok(effect);
     };
 
     options.saveSnapshot = options.saveSnapshot || function saveSnapshot(effect, callback) {

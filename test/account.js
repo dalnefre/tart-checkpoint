@@ -238,12 +238,22 @@ test['can check balance of reloaded acccount'] = function (test) {
 
 test['can see balance transfer in mirrored configuration'] = function (test) {
     test.expect(2);
+    var sponsor = require('tart').minimal();
+    
     var originalOpt = {
-        logEffect: function originalLogEffect(effect, callback) {
+        logger: sponsor(function logger(message) {
+            console.log('logger:', message);
+            var effect = message.effect;
             mirroredOpt.effect = JSON.parse(JSON.stringify(effect));
             mirroredOpt.applySnapshot();
-            mirroredOpt.saveSnapshot(effect, callback);
-        }
+            mirroredOpt.saveSnapshot(effect, function callback(error) {
+                if (error) {
+                    message.fail(error);
+                } else {
+                    message.ok(effect);
+                }
+            });
+        })
     };
     var original = tart.checkpoint(originalOpt);
     var mirroredOpt = {
@@ -253,7 +263,6 @@ test['can see balance transfer in mirrored configuration'] = function (test) {
         }
     };
     var mirrored = tart.checkpoint(mirroredOpt);
-    var sponsor = require('tart').minimal();
 
     var account0 = original.sponsor(accountBeh, { balance: 0 });
     var account1 = original.sponsor(accountBeh, { balance: 42 });
