@@ -176,24 +176,32 @@ module.exports.checkpoint = function checkpoint(options) {
 
     options.saveSnapshot = options.saveSnapshot || function saveSnapshot(effect, callback) {
         if (effect.exception) { return callback(false); }  // no snapshot on exception
-        var snapshot = options.newEffect();
-        snapshot.snapshot = true;  // mark this "effect" as a full snapshot
+        var effect = options.newEffect();
+        effect.snapshot = true;  // mark this effect as a full snapshot
         Object.keys(options.contextMap).forEach(function (token) {
             var context = options.contextMap[token];
-            snapshot.created[token] = actorMemento(context);  // make actor mementos
+            effect.created[token] = actorMemento(context);  // make actor mementos
         });
-        snapshot.sent = options.eventQueue.slice();  // copy pending events
+        effect.sent = options.eventQueue.slice();  // copy pending events
 /*
         // FIXME: DO WE REALLY WANT TO SNAPSHOT OUTBOUND MESSAGES?
-        snapshot.output = effect.output.slice();  // copy new output
+        effect.output = effect.output.slice();  // copy new output
 */
-        options.logSnapshot(snapshot, callback);
-    };
-    options.logSnapshot = options.logSnapshot || function logSnapshot(snapshot, callback) {
-        console.log('snapshot:', snapshot);
-        setImmediate(function () {
-            callback(false);
+        options.snapshot({
+            effect: effect,
+            ok: function (effect) {
+                callback(null, effect);
+            },
+            fail: function (error) {
+                callback(error);
+            }
         });
+    };
+
+    options.snapshot = options.snapshot || function snapshot(message) {  // FIXME: should be an actor?
+        var effect = message.effect;
+        console.log('snapshot:', effect);
+        message.ok(effect);
     };
 
     var ignoreBeh = (function () {}).toString();

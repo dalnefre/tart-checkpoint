@@ -95,6 +95,8 @@ An `effect` has the following attributes:
         * `effect`: _Object_ The `effect` to record.
         * `ok`: _Actor_ On success, send `effect` here.
         * `fail`: _Actor_ On failure, send `error` here.
+    * `snapshot`: _Actor_ `function (message) {}`  Record snapshots
+      * `message`: _Object_ _[same as `logger`]_
   * Return: _Object_ The checkpoint control object.
     * `domain`: _Object_ Marshal domain.
     * `router`: _Object_ Router for marshal domain.
