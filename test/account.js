@@ -37,43 +37,40 @@ var test = module.exports = {};
 //test = {};  // FIXME: DISABLE ALL TESTS IN THIS SUITE
 
 var accountBeh = (function accountBeh(message) {
+    // { amount:, ok:, fail: }
     console.log('account:', message);
-    if (message.type === 'balance') {
-        // { type:'balance', ok:, fail: }
+    var balance = this.state.balance;
+    var amount = (1 * message.amount);
+    if (amount) {
+        balance += amount;
+    }
+    console.log('balance:', balance);
+    if (balance >= 0) {
+        this.state.balance = balance;
         message.ok(this.state.balance);
-    } else if (message.type === 'adjust') {
-        // { type:'adjust', amount:, ok:, fail: }
-        var balance = this.state.balance + message.amount;
-        if (balance >= 0) {
-            this.state.balance = balance;
-            message.ok(this.state.balance);
-        } else {
-            message.fail({
-                error: 'Insufficient Funds',
-                account: this.self
-            });
-        }
+    } else {
+        message.fail({
+            error: 'Insufficient Funds',
+            account: this.self
+        });
     }
 }).toString();
 var transferBeh = (function transferBeh(message) {
     // { from:, to:, amount:, ok:, fail: }
     var debit = this.sponsor((function debitBeh(message) {
         this.state.from({
-            type: 'adjust',
             amount: -(this.state.amount),
             ok: this.self,  // continue
             fail: this.state.fail
         });
         this.behavior = (function creditBeh(message) {
             this.state.to({
-                type: 'adjust',
                 amount: +(this.state.amount),
                 ok: this.state.ok,
                 fail: this.self  // continue
             });
             this.behavior = (function reverseBeh(message) {
                 this.state.from({
-                    type: 'adjust',
                     amount: +(this.state.amount),
                     ok: this.state.fail,
                     fail: this.state.fail
@@ -95,7 +92,7 @@ test['can check balance of persistent acccount'] = function (test) {
         console.log('console:', message);
     }).toString();
     var consoleLog = checkpoint.sponsor(consoleBeh);
-    account({ type: 'balance', ok: consoleLog });
+    account({ amount:0, ok:consoleLog });
 */
     var remote = checkpoint.router.domain('remote');
     var token = checkpoint.domain.localToRemote(account);
@@ -114,7 +111,7 @@ test['can check balance of persistent acccount'] = function (test) {
         test.equal(message, 42);
         endTest();
     });
-    proxy({ type: 'balance', ok: expect42, fail: failTest });
+    proxy({ amount:0, ok:expect42, fail:failTest });
 };
 
 test['can balance transfer between persistent acccounts'] = function (test) {
@@ -139,7 +136,7 @@ test['can balance transfer between persistent acccounts'] = function (test) {
     var expect13 = sponsor(function (message) {
         console.log('expect13:', message);
         test.equal(message, 13);
-        srcAcct({ type:'balance', ok:expect29, fail:failTest });
+        srcAcct({ amount:0, ok:expect29, fail:failTest });
     });
     var expect29 = sponsor(function (message) {
         console.log('expect29:', message);
@@ -207,8 +204,8 @@ test['can see balance transfer in mirrored configuration'] = function (test) {
     };
     var mirrored = tart.checkpoint(mirroredOpt);
 
-    var account0 = original.sponsor(accountBeh, { balance: 0 });
-    var account1 = original.sponsor(accountBeh, { balance: 42 });
+    var account0 = original.sponsor(accountBeh, { balance:0 });
+    var account1 = original.sponsor(accountBeh, { balance:42 });
     var transAct = original.sponsor(transferBeh);
 
     var remote = original.router.domain('remote');
