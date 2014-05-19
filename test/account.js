@@ -31,62 +31,18 @@ OTHER DEALINGS IN THE SOFTWARE.
 "use strict";
 
 var tart = require('../index.js');
+var beh_lib = require('../beh_lib.js');
 var fs = require('fs');
 
 var test = module.exports = {};
 //test = {};  // FIXME: DISABLE ALL TESTS IN THIS SUITE
-
-var accountBeh = (function accountBeh(message) {
-    // { amount:, ok:, fail: }
-    console.log('account:', message);
-    var balance = this.state.balance;
-    var amount = (1 * message.amount);
-    if (amount) {
-        balance += amount;
-    }
-    console.log('balance:', balance);
-    if (balance >= 0) {
-        this.state.balance = balance;
-        message.ok(this.state.balance);
-    } else {
-        message.fail({
-            error: 'Insufficient Funds',
-            account: this.self
-        });
-    }
-}).toString();
-var transferBeh = (function transferBeh(message) {
-    // { from:, to:, amount:, ok:, fail: }
-    var debit = this.sponsor((function debitBeh(message) {
-        this.state.from({
-            amount: -(this.state.amount),
-            ok: this.self,  // continue
-            fail: this.state.fail
-        });
-        this.behavior = (function creditBeh(message) {
-            this.state.to({
-                amount: +(this.state.amount),
-                ok: this.state.ok,
-                fail: this.self  // continue
-            });
-            this.behavior = (function reverseBeh(message) {
-                this.state.from({
-                    amount: +(this.state.amount),
-                    ok: this.state.fail,
-                    fail: this.state.fail
-                });
-            }).toString();
-        }).toString();
-    }).toString(), message);
-    debit();
-}).toString();
 
 test['can check balance of persistent acccount'] = function (test) {
     test.expect(1);
     var checkpoint = tart.checkpoint();
     var sponsor = require('tart').minimal();
 
-    var account = checkpoint.sponsor(accountBeh, { balance: 42 });
+    var account = checkpoint.sponsor(beh_lib.account, { balance:42 });
 /*
     var consoleBeh = (function consoleBeh(message) {
         console.log('console:', message);
@@ -119,9 +75,9 @@ test['can balance transfer between persistent acccounts'] = function (test) {
     var checkpoint = tart.checkpoint();
     var sponsor = require('tart').minimal();
 
-    var account0 = checkpoint.sponsor(accountBeh, { balance: 0 });
-    var account1 = checkpoint.sponsor(accountBeh, { balance: 42 });
-    var transAct = checkpoint.sponsor(transferBeh);
+    var account0 = checkpoint.sponsor(beh_lib.account, { balance:0 });
+    var account1 = checkpoint.sponsor(beh_lib.account, { balance:42 });
+    var transAct = checkpoint.sponsor(beh_lib.accountTransfer);
 
     var remote = checkpoint.router.domain('remote');
     var endTest = sponsor(function (message) {
@@ -204,9 +160,9 @@ test['can see balance transfer in mirrored configuration'] = function (test) {
     };
     var mirrored = tart.checkpoint(mirroredOpt);
 
-    var account0 = original.sponsor(accountBeh, { balance:0 });
-    var account1 = original.sponsor(accountBeh, { balance:42 });
-    var transAct = original.sponsor(transferBeh);
+    var account0 = original.sponsor(beh_lib.account, { balance:0 });
+    var account1 = original.sponsor(beh_lib.account, { balance:42 });
+    var transAct = original.sponsor(beh_lib.accountTransfer);
 
     var remote = original.router.domain('remote');
     var endTest = sponsor(function (message) {
